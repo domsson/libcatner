@@ -12,7 +12,10 @@
 #define CATNER_XML_ENCODING "utf-8"
 
 // Default values for various BMEcat entries
-#define CATNER_DEF_IMAGE_MIME "image/jpg"
+#define CATNER_DEF_IMAGE_MIME   "image/jpg"
+#define CATNER_DEF_UNIT_CODE    "PCE"
+#define CATNER_DEF_UNIT_FACTOR  "1"
+#define CATNER_DEF_FEATURE_UNIT "00"
 
 /*
  * Data structures
