@@ -294,7 +294,7 @@ int catner_add_article_image(catner_state_s *cs, const char *aid, const char *mi
  *      a main unit that has a factor other than "1" ("1.0", "1.00", ...),
  *      so should we check for that? etc etc etc
  */
-int catner_add_unit(catner_state_s *cs, const char *aid, const char *code, const char *factor, int main)
+int catner_add_article_unit(catner_state_s *cs, const char *aid, const char *code, const char *factor, int main)
 {
 	xmlNodePtr article = libcatner_get_article(cs, BAD_CAST aid);
 	if (article == NULL)
@@ -438,7 +438,7 @@ size_t catner_num_features(catner_state_s *cs, const char *aid)
  * TODO what values are/should be optional? should we use the same value
  *      for name and descr or leave it up to the user?
  */
-int catner_add_feature(catner_state_s *cs, const char *aid, const char *fid, 
+int catner_add_article_feature(catner_state_s *cs, const char *aid, const char *fid, 
 		const char *name, const char *descr, const char *unit, const char *value)
 {
 	xmlNodePtr feature = libcatner_get_feature(cs, BAD_CAST aid, BAD_CAST fid);
@@ -480,6 +480,19 @@ int catner_add_feature(catner_state_s *cs, const char *aid, const char *fid,
 	}
 
 	return 0;
+}
+
+// TODO implement
+int catner_add_article_feature_variant(catner_state_s *cs, const char *aid, const char *fid,
+		const char *vid, const char *value)
+{
+	return -1;
+}
+
+// TODO implement
+int catner_write_xml(catner_state_s *cs)
+{
+	return -1;
 }
 
 catner_state_s *catner_init()
@@ -524,12 +537,12 @@ int main(int argc, char **argv)
 	catner_add_article_category(cs, "SRTS63", "10010000");
 	catner_add_article_category(cs, "SRTS63", "10020000");
 	catner_add_article_category(cs, "SRTS63", "10020000"); // This should not show up
-	catner_add_unit(cs, "SRTS63", "PCE", NULL, 1);
-	catner_add_unit(cs, "SRTS63", "PCE", "1", 1);
-	catner_add_unit(cs, "SRTS63", "MTR", "6", 1);
-	catner_add_feature(cs, "SRTS63", "f_test1", "Test1", "Test feature 1", NULL, "Success");
-	catner_add_feature(cs, "SRTS63", "f_test1", "Test1", "Test feature 1", NULL, "Failure"); // This should not show up
-	catner_add_feature(cs, "SRTS63", "f_test2", "Test2", "Test feature 2", NULL, "Success");
+	catner_add_article_unit(cs, "SRTS63", "PCE", NULL, 1);
+	catner_add_article_unit(cs, "SRTS63", "PCE", "1", 1);
+	catner_add_article_unit(cs, "SRTS63", "MTR", "6", 1);
+	catner_add_article_feature(cs, "SRTS63", "f_test1", "Test1", "Test feature 1", NULL, "Success");
+	catner_add_article_feature(cs, "SRTS63", "f_test1", "Test1", "Test feature 1", NULL, "Failure"); // This should not show up
+	catner_add_article_feature(cs, "SRTS63", "f_test2", "Test2", "Test feature 2", NULL, "Success");
 
 	xmlSaveFormatFileEnc("-", cs->tree, CATNER_XML_ENCODING, 1);
 }
