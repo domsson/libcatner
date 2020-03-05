@@ -489,10 +489,14 @@ int catner_add_article_feature_variant(catner_state_s *cs, const char *aid, cons
 	return -1;
 }
 
-// TODO implement
-int catner_write_xml(catner_state_s *cs)
+int catner_write_xml(catner_state_s *cs, const char *path)
 {
-	return -1;
+	return xmlSaveFormatFileEnc(path, cs->tree, CATNER_XML_ENCODING, 1);
+}
+
+int catner_print_xml(catner_state_s *cs)
+{
+	return xmlSaveFormatFileEnc(CATNER_STDOUT_FILE, cs->tree, CATNER_XML_ENCODING, 1);
 }
 
 catner_state_s *catner_init()
@@ -544,6 +548,6 @@ int main(int argc, char **argv)
 	catner_add_article_feature(cs, "SRTS63", "f_test1", "Test1", "Test feature 1", NULL, "Failure"); // This should not show up
 	catner_add_article_feature(cs, "SRTS63", "f_test2", "Test2", "Test feature 2", NULL, "Success");
 
-	xmlSaveFormatFileEnc("-", cs->tree, CATNER_XML_ENCODING, 1);
+	catner_print_xml(cs);
 }
 

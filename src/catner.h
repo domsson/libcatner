@@ -17,6 +17,9 @@
 #define CATNER_DEF_UNIT_FACTOR  "1"
 #define CATNER_DEF_FEATURE_UNIT "00"
 
+// Misc
+#define CATNER_STDOUT_FILE "-"
+
 /*
  * Data structures
  */
