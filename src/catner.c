@@ -33,6 +33,7 @@ xmlNodePtr libcatner_get_child(xmlNodePtr parent, const xmlChar *name, const xml
 	}
 
 	// No matching node found; return NULL or create and return one
+	// TODO implement logic to use xmlNewTextChild() if value!=NULL
 	return create ? xmlNewChild(parent, NULL, name, value) : NULL;
 }
 
@@ -41,7 +42,7 @@ xmlNodePtr libcatner_get_child(xmlNodePtr parent, const xmlChar *name, const xml
  * of those (0-based, so `1` would find the second), if there are that many. 
  * Otherwise returns NULL.
  */
-xmlNodePtr libcatner_get_child_at(xmlNodePtr parent, const char *name, size_t n)
+xmlNodePtr libcatner_get_child_at(xmlNodePtr parent, const xmlChar *name, size_t n)
 {
 	// We count how many matches we've found (0-based) 
 	size_t cur = 0;
@@ -68,56 +69,7 @@ xmlNodePtr libcatner_get_child_at(xmlNodePtr parent, const char *name, size_t n)
 	return NULL;
 }
 
-/*
- * Set the LOCALE to the given value, overwriting the existing value if any.
- * If the node didn't exist yet, it will be created.
- *
- * The LOCALE node tells the processing software (the shop) what language the 
- * information in the file is in. Valid values are, for example, "EN" or "DE". 
- * 
- * TODO make sure `value` is valid (two letters, all uppercase)
- */
-void catner_set_locale(catner_state_s *cs, const char *value)
-{
-	// Get the LOCALE node within CATALOG; create it if not present
-	xmlNodePtr locale = libcatner_get_child(cs->catalog, BMECAT_NODE_LOCALE, NULL, 1);
-
-	// Set the LOCALE's text node content to the given string
-	xmlNodeSetContent(locale, BAD_CAST value);
-}
-
-/*
- * Add a TERRITORY with the given value.
- *
- * TERRITORY nodes tell the processing software (the shop) what regions the 
- * products in this BMEcat file can be shipped to. Examples: "DE", "AT".
- * There can be multiple TERRITORY nodes, but each has to have a unique value.
- *
- * TODO make sure `value` is valid (two letters, all uppercase)
- */
-void catner_add_territory(catner_state_s *cs, const char *value)
-{
-	libcatner_get_child(cs->catalog, BMECAT_NODE_TERRITORY, value, 1);
-}
-
-/*
- * Set the GENERATOR_INFO node to the given value.
- *
- * This node is optional and gives information on the software that 
- * was used to generate the BMEcat file.
- */
-void catner_set_generator(catner_state_s *cs, const char *value)
-{
-	if (cs->generator == NULL)
-	{
-		cs->generator = xmlNewChild(cs->header, NULL, BAD_CAST BMECAT_NODE_GENERATOR, BAD_CAST value);
-		return;
-	}
-
-	xmlNodeSetContent(cs->generator, BAD_CAST value);
-}
-
-xmlNodePtr catner_get_article(catner_state_s *cs, const char *aid)
+xmlNodePtr libcatner_get_article(catner_state_s *cs, const xmlChar *aid)
 {
 	// Iterate all articles
 	xmlNodePtr article = cs->articles->children;
@@ -139,223 +91,12 @@ xmlNodePtr catner_get_article(catner_state_s *cs, const char *aid)
 }
 
 /*
- * TODO return codes?
- */
-int catner_set_article_title(catner_state_s *cs, const char *aid, const char *title)
-{
-	xmlNodePtr article = catner_get_article(cs, aid);
-	if (article == NULL)
-	{
-		return -1;
-	}
-
-	// Find or create the ARTICLE_DETAILS node within this ARTICLE
-	xmlNodePtr details = libcatner_get_child(article, BMECAT_NODE_ARTICLE_DETAILS, NULL, 1);
-
-	// Find or create the DESCRIPTION_SHORT node within ARTICLE_DETAILS
-	xmlNodePtr t = libcatner_get_child(details, BMECAT_NODE_ARTICLE_TITLE, NULL, 1);
-	
-	// Set the text of the title node accordingly
-	xmlNodeSetContent(t, BAD_CAST title);
-
-	return 1;
-}
-
-/*
- * TODO return codes?
- */
-int catner_set_article_descr(catner_state_s *cs, const char *aid, const char *descr)
-{
-	xmlNodePtr article = catner_get_article(cs, aid);
-	if (article == NULL)
-	{
-		return -1;
-	}
-
-	// Find or create the ARTICLE_DETAILS node within this ARTICLE
-	xmlNodePtr details = libcatner_get_child(article, BAD_CAST BMECAT_NODE_ARTICLE_DETAILS, NULL, 1);
-
-	// Find or create the DESCRIPTION_SHORT node within ARTICLE_DETAILS
-	xmlNodePtr d = libcatner_get_child(details, BAD_CAST BMECAT_NODE_ARTICLE_DESCR, NULL, 1);
-	
-	// Set the text of the title node accordingly
-	xmlNodeSetContent(d, BAD_CAST descr);
-
-	return 1;
-}
-
-// TODO return codes? 1 for already exists, 0 for success, -1 for errors?
-int catner_add_article(catner_state_s *cs, const char *aid, const char *title, const char *descr)
-{
-	if (catner_get_article(cs, aid) != NULL)
-	{
-		return 1;
-	}
-	xmlNodePtr article = xmlNewChild(cs->articles, NULL, BAD_CAST BMECAT_NODE_ARTICLE, NULL);
-	xmlNewChild(article, NULL, BAD_CAST BMECAT_NODE_ARTICLE_ID, BAD_CAST aid);
-	xmlNodePtr details = xmlNewChild(article, NULL, BAD_CAST BMECAT_NODE_ARTICLE_DETAILS, NULL);
-
-	if (title != NULL)
-	{
-		xmlNewChild(details, NULL, BAD_CAST BMECAT_NODE_ARTICLE_TITLE, BAD_CAST title);
-	}
-	if (descr != NULL)
-	{
-		xmlNewChild(details, NULL, BAD_CAST BMECAT_NODE_ARTICLE_DESCR, BAD_CAST descr);
-	}
-	return 0;
-}
-
-xmlNodePtr catner_add_article_image(catner_state_s *cs, const char *aid, const char *mime, const char *path)
-{
-	xmlNodePtr article = catner_get_article(cs, aid);
-	if (article == NULL)
-	{
-		return NULL;
-	}
-	
-	xmlNodePtr images = libcatner_get_child(article, BMECAT_NODE_ARTICLE_IMAGES, NULL, 1);
-
-	// See if there is already an image with that path in this ARTICLE
-	xmlNodePtr image  = images->children;
-	while (image != NULL)
-	{
-		// Check if this MIME node has a MIME_SOURCE node with the given `path` value
-		if (libcatner_get_child(image, BMECAT_NODE_ARTICLE_IMAGE_PATH, path, 0) != NULL)
-		{
-			// If so, this image already exists, let's return it
-			return image;
-		}
-
-		// Try the next image
-		image = image->next;
-	}
-
-	// No such image present yet, let's create and return it
-	image = xmlNewChild(images, NULL, BAD_CAST BMECAT_NODE_ARTICLE_IMAGE, NULL);
-	xmlNewChild(image, NULL, BAD_CAST BMECAT_NODE_ARTICLE_IMAGE_MIME, BAD_CAST mime);
-	xmlNewChild(image, NULL, BAD_CAST BMECAT_NODE_ARTICLE_IMAGE_PATH, BAD_CAST path);
-
-	return image;
-}
-
-/*
- * TODO contract/workings of this function: should we automatically set the
- *      main unit if there wasn't one? shouldn't we strictly adhere to the 
- *      user's request? Also, it doesn't technically make much sense to have 
- *      a main unit that has a factor other than "1" ("1.0", "1.00", ...),
- *      so should we check for that? etc etc etc
- */
-xmlNodePtr catner_add_unit(catner_state_s *cs, const char *aid, const char *code, const char *factor, int main)
-{
-	xmlNodePtr article = catner_get_article(cs, aid);
-	if (article == NULL)
-	{
-		return NULL;
-	}
-
-	// Construct unit factor string based on user input and default value
-	const char *f = factor ? factor : CATNER_DEF_UNIT_FACTOR;
-
-	// Find the ARTICLE_ORDER_DETAILS node, which holds all units
-	xmlNodePtr details = libcatner_get_child(article, (xmlChar*) BMECAT_NODE_ARTICLE_UNITS, NULL, 1);
-
-	// Iterate ARTICLE_ORDER_DETAILS' children to find ALTERNATIVE_UNIT nodes
-	xmlNodePtr child = details->children;
-	xmlNodePtr alt_unit = NULL;
-	while (child != NULL)
-	{
-		// We're only interested in ALTERNATIVE_UNIT nodes
-		if (xmlStrcmp(child->name, (xmlChar*) BMECAT_NODE_ARTICLE_ALT_UNIT) == 0)
-		{
-			// Check if this ALTERNATIVE_UNIT has the unit code we're looking for
-			if (libcatner_get_child(child, BMECAT_NODE_ARTICLE_UNIT_CODE, code, 0) != NULL)
-			{
-				// If so, remember this node and stop iterating
-				alt_unit = child;
-				break;
-			}
-		}
-
-		child = child->next;
-	}
-
-	xmlNodePtr main_unit = libcatner_get_child(details, BMECAT_NODE_ARTICLE_UNIT, NULL, 0);
-
-	// No ORDER_UNIT (main unit) present yet, let's add it
-	if (main_unit == NULL)
-	{
-		main_unit = xmlNewChild(details, NULL, (xmlChar*) BMECAT_NODE_ARTICLE_UNIT, (xmlChar*) code);
-	}
-
-	// ORDER_UNIT already present, let's update it if so requested 
-	if (main)
-	{
-		xmlNodeSetContent(main_unit, (xmlChar*) code);
-	}
-
-	// ALTERNATIVE_UNIT node wasn't present for this unit code, we'll add it now
-	if (alt_unit == NULL)
-	{
-		alt_unit = xmlNewChild(details, NULL, (xmlChar*) BMECAT_NODE_ARTICLE_ALT_UNIT, NULL);
-		xmlNewChild(alt_unit, NULL, (xmlChar*) BMECAT_NODE_ARTICLE_UNIT_CODE, (xmlChar*) code);
-		xmlNewChild(alt_unit, NULL, (xmlChar*) BMECAT_NODE_ARTICLE_UNIT_FACTOR, (xmlChar*) f);
-	}
-	
-	// ALTERNATIVE_UNIT was present, we'll just update it
-	else
-	{
-		xmlNodePtr unit_factor = libcatner_get_child(alt_unit, BMECAT_NODE_ARTICLE_UNIT_FACTOR, NULL, 1);
-		xmlNodeSetContent(unit_factor, (xmlChar*) f);
-	}
-
-	return alt_unit;
-}
-
-/*
- * Adds the given category id to the article with the given `aid` and returns 
- * the associated ARTICLE_REFERENCE node. If there is no article with the given 
- * `aid`, this function returns NULL. If the article already had the cateogry 
- * added, the function simply returns a reference to it.
- */
-xmlNodePtr catner_add_article_category(catner_state_s *cs, const char *aid, const char *cat)
-{
-	xmlNodePtr article = catner_get_article(cs, aid);
-	if (article == NULL)
-	{
-		return NULL;
-	}
-
-	xmlNodePtr child = article->children;
-	while (child != NULL)
-	{
-		// We are only interested in ARTICLE_REFERENCE nodes
-		if (xmlStrcmp(child->name, (xmlChar*) BMECAT_NODE_ARTICLE_CATEGORY) == 0)
-		{
-			if (libcatner_get_child(child, BMECAT_NODE_ARTICLE_CATEGORY_ID, cat, 0) != NULL)
-			{
-				return child;
-			}
-		}
-		
-		// No match, check next node
-		child = child->next;
-	}
-
-	// No such category present yet, let's add it
-	xmlNodePtr category = xmlNewChild(article, NULL, (xmlChar*) BMECAT_NODE_ARTICLE_CATEGORY, NULL);
-	xmlNewChild(category, NULL, (xmlChar*) BMECAT_NODE_ARTICLE_CATEGORY_ID, (xmlChar*) cat);
-
-	return category;
-}
-
-/*
  * Find and return the feature with the ID `fid` which is part of the article 
  * with the ID `aid`, or NULL if the feature or article can't be found.
  */
-xmlNodePtr catner_get_feature(catner_state_s *cs, const char *aid, const char *fid)
+xmlNodePtr libcatner_get_feature(catner_state_s *cs, const xmlChar *aid, const xmlChar *fid)
 {
-	xmlNodePtr article = catner_get_article(cs, aid);
+	xmlNodePtr article = libcatner_get_article(cs, aid);
 	if (article == NULL)
 	{
 		return NULL;
@@ -374,7 +115,7 @@ xmlNodePtr catner_get_feature(catner_state_s *cs, const char *aid, const char *f
 	while (child != NULL)
 	{
 		// We are only interested in FEATURE nodes
-		if (xmlStrcmp(child->name, (xmlChar*) BMECAT_NODE_FEATURE) == 0)
+		if (xmlStrcmp(child->name, BMECAT_NODE_FEATURE) == 0)
 		{
 			// If this FEATURE has a FID and its content matches fid, we're done
 			if (libcatner_get_child(child, BMECAT_NODE_FEATURE_ID, fid, 0) != NULL)
@@ -389,9 +130,279 @@ xmlNodePtr catner_get_feature(catner_state_s *cs, const char *aid, const char *f
 	return NULL;
 }
 
+/*
+ * Set the LOCALE to the given value, overwriting the existing value if any.
+ * If the node didn't exist yet, it will be created.
+ *
+ * The LOCALE node tells the processing software (the shop) what language the 
+ * information in the file is in. Valid values are, for example, "EN" or "DE". 
+ * 
+ * TODO make sure `value` is valid (two letters, all uppercase)
+ */
+int catner_set_locale(catner_state_s *cs, const char *value)
+{
+	// Get the LOCALE node within CATALOG; create it if not present
+	xmlNodePtr locale = libcatner_get_child(cs->catalog, BMECAT_NODE_LOCALE, NULL, 1);
+	if (locale == NULL)
+	{
+		return -1;
+	}
+
+	// Set the LOCALE's text node content to the given string
+	xmlNodeSetContent(locale, BAD_CAST value);
+	return 0;
+}
+
+/*
+ * Add a TERRITORY with the given value.
+ *
+ * TERRITORY nodes tell the processing software (the shop) what regions the 
+ * products in this BMEcat file can be shipped to. Examples: "DE", "AT".
+ * There can be multiple TERRITORY nodes, but each has to have a unique value.
+ *
+ * TODO make sure `value` is valid (two letters, all uppercase)
+ */
+int catner_add_territory(catner_state_s *cs, const char *value)
+{
+	xmlNodePtr t = libcatner_get_child(cs->catalog, BMECAT_NODE_TERRITORY, BAD_CAST value, 1);
+	return t == NULL ? -1 : 0;
+}
+
+/*
+ * Set the GENERATOR_INFO node to the given value.
+ *
+ * This node is optional and gives information on the software that 
+ * was used to generate the BMEcat file.
+ */
+int catner_set_generator(catner_state_s *cs, const char *value)
+{
+	if (cs->generator == NULL)
+	{
+		cs->generator = xmlNewTextChild(cs->header, NULL, BMECAT_NODE_GENERATOR, BAD_CAST value);
+		return 0;
+	}
+
+	xmlNodeSetContent(cs->generator, BAD_CAST value);
+	return 0;
+}
+
+/*
+ * TODO return codes?
+ */
+int catner_set_article_title(catner_state_s *cs, const char *aid, const char *title)
+{
+	xmlNodePtr article = libcatner_get_article(cs, BAD_CAST aid);
+	if (article == NULL)
+	{
+		return -1;
+	}
+
+	// Find or create the ARTICLE_DETAILS node within this ARTICLE
+	xmlNodePtr details = libcatner_get_child(article, BMECAT_NODE_ARTICLE_DETAILS, NULL, 1);
+
+	// Find or create the DESCRIPTION_SHORT node within ARTICLE_DETAILS
+	xmlNodePtr t = libcatner_get_child(details, BMECAT_NODE_ARTICLE_TITLE, NULL, 1);
+	
+	// Set the text of the title node accordingly
+	xmlNodeSetContent(t, BAD_CAST title);
+	return 0;
+}
+
+/*
+ * TODO return codes?
+ */
+int catner_set_article_descr(catner_state_s *cs, const char *aid, const char *descr)
+{
+	xmlNodePtr article = libcatner_get_article(cs, BAD_CAST aid);
+	if (article == NULL)
+	{
+		return -1;
+	}
+
+	// Find or create the ARTICLE_DETAILS node within this ARTICLE
+	xmlNodePtr details = libcatner_get_child(article, BMECAT_NODE_ARTICLE_DETAILS, NULL, 1);
+
+	// Find or create the DESCRIPTION_SHORT node within ARTICLE_DETAILS
+	xmlNodePtr d = libcatner_get_child(details, BMECAT_NODE_ARTICLE_DESCR, NULL, 1);
+	
+	// Set the text of the title node accordingly
+	xmlNodeSetContent(d, BAD_CAST descr);
+	return 0;
+}
+
+// TODO return codes? 1 for already exists, 0 for success, -1 for errors?
+int catner_add_article(catner_state_s *cs, const char *aid, const char *title, const char *descr)
+{
+	if (libcatner_get_article(cs, BAD_CAST aid) != NULL)
+	{
+		return 1;
+	}
+	xmlNodePtr article = xmlNewChild(cs->articles, NULL, BMECAT_NODE_ARTICLE, NULL);
+	xmlNewTextChild(article, NULL, BMECAT_NODE_ARTICLE_ID, BAD_CAST aid);
+	xmlNodePtr details = xmlNewChild(article, NULL, BMECAT_NODE_ARTICLE_DETAILS, NULL);
+
+	if (title != NULL)
+	{
+		xmlNewTextChild(details, NULL, BMECAT_NODE_ARTICLE_TITLE, BAD_CAST title);
+	}
+	if (descr != NULL)
+	{
+		xmlNewTextChild(details, NULL, BMECAT_NODE_ARTICLE_DESCR, BAD_CAST descr);
+	}
+	return 0;
+}
+
+// Returns 0 on success, 1 if image was already present, -1 on error
+int catner_add_article_image(catner_state_s *cs, const char *aid, const char *mime, const char *path)
+{
+	xmlNodePtr article = libcatner_get_article(cs, BAD_CAST aid);
+	if (article == NULL)
+	{
+		return -1;
+	}
+	
+	xmlNodePtr images = libcatner_get_child(article, BMECAT_NODE_ARTICLE_IMAGES, NULL, 1);
+
+	// See if there is already an image with that path in this ARTICLE
+	xmlNodePtr image  = images->children;
+	while (image != NULL)
+	{
+		// Check if this MIME node has a MIME_SOURCE node with the given `path` value
+		if (libcatner_get_child(image, BMECAT_NODE_ARTICLE_IMAGE_PATH, BAD_CAST path, 0) != NULL)
+		{
+			// If so, this image already exists, we're done
+			return 1;
+		}
+
+		// Try the next image
+		image = image->next;
+	}
+
+	// No such image present yet, let's create and return it
+	image = xmlNewChild(images, NULL, BMECAT_NODE_ARTICLE_IMAGE, NULL);
+	// TODO use xmlNewChild() or xmlNewTextChild()? Might need to ask kloeckner
+	xmlNewTextChild(image, NULL, BMECAT_NODE_ARTICLE_IMAGE_MIME, BAD_CAST mime);
+	xmlNewTextChild(image, NULL, BMECAT_NODE_ARTICLE_IMAGE_PATH, BAD_CAST path);
+
+	return 0;
+}
+
+/*
+ * TODO contract/workings of this function: should we automatically set the
+ *      main unit if there wasn't one? shouldn't we strictly adhere to the 
+ *      user's request? Also, it doesn't technically make much sense to have 
+ *      a main unit that has a factor other than "1" ("1.0", "1.00", ...),
+ *      so should we check for that? etc etc etc
+ */
+int catner_add_unit(catner_state_s *cs, const char *aid, const char *code, const char *factor, int main)
+{
+	xmlNodePtr article = libcatner_get_article(cs, BAD_CAST aid);
+	if (article == NULL)
+	{
+		return -1;
+	}
+
+	// Construct unit factor string based on user input and default value
+	const char *f = factor ? factor : CATNER_DEF_UNIT_FACTOR;
+
+	// Find the ARTICLE_ORDER_DETAILS node, which holds all units
+	xmlNodePtr details = libcatner_get_child(article, BMECAT_NODE_ARTICLE_UNITS, NULL, 1);
+
+	// Iterate ARTICLE_ORDER_DETAILS' children to find ALTERNATIVE_UNIT nodes
+	xmlNodePtr child = details->children;
+	xmlNodePtr alt_unit = NULL;
+	while (child != NULL)
+	{
+		// We're only interested in ALTERNATIVE_UNIT nodes
+		if (xmlStrcmp(child->name, BMECAT_NODE_ARTICLE_ALT_UNIT) == 0)
+		{
+			// Check if this ALTERNATIVE_UNIT has the unit code we're looking for
+			if (libcatner_get_child(child, BMECAT_NODE_ARTICLE_UNIT_CODE, BAD_CAST code, 0) != NULL)
+			{
+				// If so, remember this node and stop iterating
+				alt_unit = child;
+				break;
+			}
+		}
+
+		child = child->next;
+	}
+
+	xmlNodePtr main_unit = libcatner_get_child(details, BMECAT_NODE_ARTICLE_UNIT, NULL, 0);
+
+	// No ORDER_UNIT (main unit) present yet, let's add it
+	if (main_unit == NULL)
+	{
+		main_unit = xmlNewTextChild(details, NULL, BMECAT_NODE_ARTICLE_UNIT, BAD_CAST code);
+	}
+
+	// ORDER_UNIT already present, let's update it if so requested 
+	if (main)
+	{
+		xmlNodeSetContent(main_unit, (xmlChar*) code);
+	}
+
+	// ALTERNATIVE_UNIT node wasn't present for this unit code, we'll add it now
+	if (alt_unit == NULL)
+	{
+		alt_unit = xmlNewChild(details, NULL, BMECAT_NODE_ARTICLE_ALT_UNIT, NULL);
+		xmlNewTextChild(alt_unit, NULL, BMECAT_NODE_ARTICLE_UNIT_CODE, BAD_CAST code);
+		xmlNewTextChild(alt_unit, NULL, BMECAT_NODE_ARTICLE_UNIT_FACTOR, BAD_CAST f);
+	}
+	
+	// ALTERNATIVE_UNIT was present, we'll just update it
+	else
+	{
+		xmlNodePtr unit_factor = libcatner_get_child(alt_unit, BMECAT_NODE_ARTICLE_UNIT_FACTOR, NULL, 0);
+		xmlNodeSetContent(unit_factor, BAD_CAST f);
+	}
+
+	return 0;
+}
+
+/*
+ * TODO update return value documentation
+ *
+ * Adds the given category id to the article with the given `aid` and returns 
+ * the associated ARTICLE_REFERENCE node. If there is no article with the given 
+ * `aid`, this function returns NULL. If the article already had the cateogry 
+ * added, the function simply returns a reference to it.
+ */
+int catner_add_article_category(catner_state_s *cs, const char *aid, const char *cat)
+{
+	xmlNodePtr article = libcatner_get_article(cs, BAD_CAST aid);
+	if (article == NULL)
+	{
+		return -1;
+	}
+
+	xmlNodePtr child = article->children;
+	while (child != NULL)
+	{
+		// We are only interested in ARTICLE_REFERENCE nodes
+		if (xmlStrcmp(child->name, BAD_CAST BMECAT_NODE_ARTICLE_CATEGORY) == 0)
+		{
+			if (libcatner_get_child(child, BMECAT_NODE_ARTICLE_CATEGORY_ID, BAD_CAST cat, 0) != NULL)
+			{
+				// Already exists
+				return 1;
+			}
+		}
+		
+		// No match, check next node
+		child = child->next;
+	}
+
+	// No such category present yet, let's add it
+	xmlNodePtr category = xmlNewChild(article, NULL, BMECAT_NODE_ARTICLE_CATEGORY, NULL);
+	xmlNewTextChild(category, NULL, BMECAT_NODE_ARTICLE_CATEGORY_ID, BAD_CAST cat);
+
+	return 0;
+}
+
 size_t catner_num_features(catner_state_s *cs, const char *aid)
 {
-	xmlNodePtr article = catner_get_article(cs, aid);
+	xmlNodePtr article = libcatner_get_article(cs, BAD_CAST aid);
 	if (article == NULL)
 	{
 		return 0;
@@ -410,7 +421,7 @@ size_t catner_num_features(catner_state_s *cs, const char *aid)
 	while (child != NULL)
 	{
 		// We are only interested in FEATURE nodes
-		if (xmlStrcmp(child->name, (xmlChar*) BMECAT_NODE_FEATURE) == 0)
+		if (xmlStrcmp(child->name, BAD_CAST BMECAT_NODE_FEATURE) == 0)
 		{
 			++num_features;
 		}
@@ -427,23 +438,23 @@ size_t catner_num_features(catner_state_s *cs, const char *aid)
  * TODO what values are/should be optional? should we use the same value
  *      for name and descr or leave it up to the user?
  */
-xmlNodePtr catner_add_feature(catner_state_s *cs, const char *aid, const char *fid, 
+int catner_add_feature(catner_state_s *cs, const char *aid, const char *fid, 
 		const char *name, const char *descr, const char *unit, const char *value)
 {
-	xmlNodePtr feature = catner_get_feature(cs, aid, fid);
+	xmlNodePtr feature = libcatner_get_feature(cs, BAD_CAST aid, BAD_CAST fid);
 	
-	// Feature already exists, just return it
+	// Feature already exists, we're done
 	if (feature != NULL)
 	{
-		return feature;
+		return 1;
 	}
 
-	xmlNodePtr article = catner_get_article(cs, aid);
+	xmlNodePtr article = libcatner_get_article(cs, BAD_CAST aid);
 
-	// Article doesn't exist, return NULL
+	// Article doesn't exist, that's an error
 	if (article == NULL)
 	{
-		return NULL;
+		return -1;
 	}
 
 	// Figure out the number of existing FEATUREs and make it a string
@@ -457,18 +468,18 @@ xmlNodePtr catner_add_feature(catner_state_s *cs, const char *aid, const char *f
 	// Find or create ARTICLE_FEATURES node
 	xmlNodePtr features = libcatner_get_child(article, BMECAT_NODE_FEATURES, NULL, 1);
 	feature = xmlNewChild(features, NULL, BMECAT_NODE_FEATURE, NULL);
-	xmlNewChild(feature, NULL, BMECAT_NODE_FEATURE_ID,    (xmlChar*) fid);
-	xmlNewChild(feature, NULL, BMECAT_NODE_FEATURE_NAME,  (xmlChar*) name);
-	xmlNewChild(feature, NULL, BMECAT_NODE_FEATURE_DESCR, (xmlChar*) d);
-	xmlNewChild(feature, NULL, BMECAT_NODE_FEATURE_UNIT,  (xmlChar*) u);
-	xmlNewChild(feature, NULL, BMECAT_NODE_FEATURE_ORDER, (xmlChar*) o);
+	xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_ID,    BAD_CAST fid);
+	xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_NAME,  BAD_CAST name);
+	xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_DESCR, BAD_CAST d);
+	xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_UNIT,  BAD_CAST u);
+	xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_ORDER, BAD_CAST o);
 
 	if (value != NULL)
 	{
-		xmlNewChild(feature, NULL, BMECAT_NODE_FEATURE_VALUE, (xmlChar*) value);
+		xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_VALUE, BAD_CAST value);
 	}
 
-	return feature;
+	return 0;
 }
 
 catner_state_s *catner_init()
@@ -477,11 +488,11 @@ catner_state_s *catner_init()
 	catner_state_s empty_state = { 0 };
 	*state = empty_state;
 
-	state->tree = xmlNewDoc(CATNER_XML_VERSION);
+	state->tree = xmlNewDoc(BAD_CAST CATNER_XML_VERSION);
 	state->root = xmlNewNode(NULL, BMECAT_NODE_ROOT);
 
-	xmlNewProp(state->root, (xmlChar*) "version", BMECAT_VERSION);
-	xmlNewProp(state->root, (xmlChar*) "xmlns",   BMECAT_NAMESPACE);
+	xmlNewProp(state->root, BAD_CAST "version", BMECAT_VERSION);
+	xmlNewProp(state->root, BAD_CAST "xmlns",   BMECAT_NAMESPACE);
 
 	state->header   = xmlNewChild(state->root,   NULL, BMECAT_NODE_HEADER,   NULL);
 	state->articles = xmlNewChild(state->root,   NULL, BMECAT_NODE_ARTICLES, NULL);
