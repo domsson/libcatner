@@ -598,8 +598,8 @@ size_t catner_num_article_feature_variants(catner_state_s *cs, const char *aid, 
 }
 
 /*
- * TODO if feature already exists, should be return indication?
- *      should we update the feature with the given name, desc, unit, value?
+ * TODO if feature already exists, should we update the feature with 
+ *      the given name, desc, unit, value or just return 1 without change?
  * TODO what values are/should be optional? should we use the same value
  *      for name and descr or leave it up to the user?
  */
@@ -649,7 +649,9 @@ int catner_add_article_feature(catner_state_s *cs, const char *aid, const char *
 	return 0;
 }
 
-// TODO test this
+/*
+ * TODO documentation
+ */
 int catner_add_article_feature_variant(catner_state_s *cs, const char *aid, const char *fid,
 		const char *vid, const char *value)
 {
@@ -697,11 +699,171 @@ int catner_add_article_feature_variant(catner_state_s *cs, const char *aid, cons
 	return 0;
 }
 
+/*
+ * Set the currently selected article to the first article there is, or NULL 
+ * if there is none. If the first article was already selected, this function 
+ * does nothing. Otherwise, the current feature and variant selection will be 
+ * reset to NULL. Returns 1 if there is now an article selected, otherwise 0.
+ */
+int catner_first_article(catner_state_s *cs)
+{
+	// Let's find the first article
+	xmlNodePtr first = libcatner_get_child(cs->articles, BMECAT_NODE_ARTICLE, NULL, 0);
+	
+	// Check if this is different from the currently selected article
+	if (cs->_curr_article != first)
+	{
+		// If so, update the reference
+		cs->_curr_article = first;
+
+		// We also have to reset feature and variant selection
+		cs->_curr_feature = NULL;
+		cs->_curr_variant = NULL;
+	}
+
+	return (cs->_curr_article != NULL);
+}
+
+/*
+ * Change the currently selected article to the next one there is, or NULL.
+ * If no article was selected, this function will do nothing and return 0.
+ * Otherwise, the currently selected feature and variant will be reset, too.
+ * Returns 1 if there was another article and it was selected, otherwise 0.
+ */
+int catner_next_article(catner_state_s *cs)
+{
+	// If we have no article currently selected, abort
+	if (cs->_curr_article == NULL)
+	{
+		return 0;
+	}
+
+	// Now we'll advance to the next article
+	cs->_curr_article = cs->_curr_article->next;
+	
+	// Change of article means we've got to reset selected feature and variant
+	cs->_curr_feature = NULL;
+	cs->_curr_variant = NULL;
+
+	// Return 1 if we got something, otherwise 0
+	return (cs->_curr_article != NULL);
+}
+
+/*
+ * Set the currently selected feature to the first one of the currently 
+ * selected article, if any. If the first feature was already selected before, 
+ * this function does nothing and returns 1. If the selection was changed, 
+ * the current variant selection will be reset and the function returns 1 if 
+ * there is now a feature selected or 0 if no feature could be selected. 
+ */
+int catner_first_feature(catner_state_s *cs)
+{
+	// Can't select a feature if no article selected
+	if (cs->_curr_article == NULL)
+	{
+		return 0;
+	}
+	
+	// Find the node containing all features 
+	xmlNodePtr features = libcatner_get_child(cs->_curr_article, BMECAT_NODE_FEATURES, NULL, 0);
+	if (features == NULL)
+	{
+		// The selected article doesn't have any features
+		return 0;
+	}
+
+	// Find the first feature or NULL if there aren't any
+	xmlNodePtr first = libcatner_get_child(features, BMECAT_NODE_FEATURE, NULL, 0);
+
+	if (cs->_curr_feature != first)
+	{
+		// Update the feature selection
+		cs->_curr_feature = first;
+
+		// Therefore, also reset the current variant selection
+		cs->_curr_variant = NULL;
+	}
+
+	// Find the first feature for the currently selected article
+	return (cs->_curr_feature != NULL); 
+}
+
+/*
+ * TODO documentation
+ */
+int catner_next_feature(catner_state_s *cs)
+{
+	// Make sure we currently have a feature selected, otherwise abort
+	if (cs->_curr_feature == NULL)
+	{
+		return 0;
+	}
+
+	// Now we'll advance to the next feature
+	cs->_curr_feature = cs->_curr_article->next;
+
+	// Change of feature means we've to to reset the selected variant
+	cs->_curr_variant = NULL;
+
+	// Return 1 if we got something, otherwise 0
+	return (cs->_curr_feature != NULL);
+}
+
+/*
+ * TODO documentation
+ */
+int catner_first_variant(catner_state_s *cs)
+{
+	// Check if we have a feature selected, otherwise abort
+	if (cs->_curr_feature == NULL)
+	{
+		return 0;
+	}
+
+	// Find the node containing all variants of this feature
+	xmlNodePtr variants = libcatner_get_child(cs->_curr_feature, BMECAT_NODE_VARIANTS, NULL, 0);
+	if (variants == NULL)
+	{
+		// The selected feature doesn't have any variants
+		return 0;
+	}
+
+	// Find the first variant
+	cs->_curr_variant = libcatner_get_child(variants, BMECAT_NODE_VARIANT, NULL, 0);
+		
+	// Return 1 we got something, otherwise 0;
+	return (cs->_curr_variant != NULL);
+}
+
+/*
+ * TODO documentation
+ */
+int catner_next_variant(catner_state_s *cs)
+{
+	// Abort right away if we don't currently have a variant selected
+	if (cs->_curr_variant == NULL)
+	{
+		return 0;
+	}
+
+	// No we'll advance to the next variant
+	cs->_curr_variant = cs->_curr_variant->next;
+
+	// Return 1 if we got something, otherwise 0
+	return (cs->_curr_variant != NULL);
+}
+
+/*
+ * TODO documentation
+ */
 int catner_write_xml(catner_state_s *cs, const char *path)
 {
 	return xmlSaveFormatFileEnc(path, cs->doc, CATNER_XML_ENCODING, 1);
 }
 
+/*
+ * TODO documentation
+ */
 int catner_print_xml(catner_state_s *cs)
 {
 	return xmlSaveFormatFileEnc(CATNER_STDOUT_FILE, cs->doc, CATNER_XML_ENCODING, 1);
@@ -720,6 +882,9 @@ int catner_save(catner_state_s *cs)
 	return catner_write_xml(cs, cs->path);
 }
 
+/*
+ * TODO documentation
+ */
 catner_state_s *catner_init()
 {
 	catner_state_s *state = malloc(sizeof(catner_state_s));
@@ -736,7 +901,7 @@ catner_state_s *catner_init()
 }
 
 /*
- * TODO implement
+ * TODO documentation
  */
 catner_state_s *catner_load(const char *path, int amend)
 {
@@ -780,7 +945,8 @@ catner_state_s *catner_load(const char *path, int amend)
 }
 
 /*
- * TODO implement
+ * TODO - documentation 
+ *      - make absolutely sure this does all we need it to do
  */
 void catner_free(catner_state_s *cs)
 {
