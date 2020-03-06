@@ -77,25 +77,26 @@ size_t libcatner_num_children(const xmlNodePtr parent, const xmlChar *name,
 	size_t num = 0;
 
 	// Iterate all child nodes of parent
-	xmlNodePtr child = parent->children;
-	while (child != NULL)
+	xmlNodePtr child = NULL; 
+	for (child = parent->children; child; child = child->next)
 	{
-		// Does the child node's name match?
-		if (xmlStrcmp(child->name, name) == 0)
+		// Node name mismatch, therefore we continue
+		if (xmlStrcmp(child->name, name) != 0)
 		{
-			// No node content value given, so we count this
-			if (value == NULL)
-			{
-				++num;
-			}
-
-			// Node content value given, count if it matches
-			else if (xmlStrcmp(xmlNodeGetContent(child), value) == 0)
-			{
-				++num;
-			}
+			continue;
 		}
-		child = child->next;
+		
+		// No node content value given, so we count this
+		if (value == NULL)
+		{
+			++num;
+		}
+
+		// Node content value given, count if it matches
+		else if (xmlStrcmp(xmlNodeGetContent(child), value) == 0)
+		{
+			++num;
+		}
 	}
 	return num;
 }
@@ -105,27 +106,29 @@ size_t libcatner_num_children(const xmlNodePtr parent, const xmlChar *name,
  * of those (0-based, so `1` would find the second), if there are that many. 
  * Otherwise returns NULL.
  */
-xmlNodePtr libcatner_get_child_at(const xmlNodePtr parent, const xmlChar *name, size_t n)
+xmlNodePtr libcatner_get_child_at(const xmlNodePtr parent, const xmlChar *name, 
+		size_t n)
 {
 	// We count how many matches we've found (0-based) 
 	size_t cur = 0;
 
 	// Iterate all children of parent and check if they match `name`
-	xmlNodePtr child = parent->children;
-	while (child != NULL)
+	xmlNodePtr child = NULL;
+	for (child = parent->children; child; child = child->next)
 	{
-		if (xmlStrcmp(child->name, BAD_CAST name) == 0)
+		if (xmlStrcmp(child->name, BAD_CAST name) != 0)
 		{
-			// Is this the `n`th item of this type we've found?
-			if (cur == n)
-			{
-				return child;
-			}
-
-			// Otherwise, continue to search
-			++cur;
+			continue;
 		}
-		child = child->next;
+
+		// Is this the `n`th item of this type we've found?
+		if (cur == n)
+		{
+			return child;
+		}
+
+		// Otherwise, continue to search
+		++cur;
 	}
 	
 	// Couldn't find `n` number of matching elements (maybe even none)
@@ -207,18 +210,15 @@ xmlNodePtr libcatner_get_catalog(xmlNodePtr header, int create)
 xmlNodePtr libcatner_get_article(const xmlNodePtr articles, const xmlChar *aid)
 {
 	// Iterate all articles
-	xmlNodePtr article = articles->children;
-	while (article != NULL)
+	xmlNodePtr article = NULL;
+	for (article = articles->children; article; article = article->next)
 	{
 		// Find the article's SUPPLIER_AID element with the given aid value
-		if (libcatner_get_child(article, BMECAT_NODE_ARTICLE_ID, aid, 0) != NULL)
+		if (libcatner_get_child(article, BMECAT_NODE_ARTICLE_ID, aid, 0))
 		{
 			// If found, return this article
 			return article;
 		}
-
-		// Otherwise, check the next article
-		article = article->next;
 	}
 
 	// No matching article found
@@ -240,20 +240,20 @@ xmlNodePtr libcatner_get_feature(const xmlNodePtr article, const xmlChar *fid)
 		return NULL;
 	}
 
-	xmlNodePtr child = features->children;
-	while (child != NULL)
+	xmlNodePtr child = NULL;
+	for (child = features->children; child; child = child->next)
 	{
 		// We are only interested in FEATURE nodes
-		if (xmlStrcmp(child->name, BMECAT_NODE_FEATURE) == 0)
+		if (xmlStrcmp(child->name, BMECAT_NODE_FEATURE) != 0)
 		{
-			// If this FEATURE has a FID and its content matches fid, we're done
-			if (libcatner_get_child(child, BMECAT_NODE_FEATURE_ID, fid, 0) != NULL)
-			{
-				return child;
-			}
+			continue;
 		}
-		// Continue with next child node
-		child = child->next;
+		
+		// If this FEATURE has a FID and its content matches fid, we're done
+		if (libcatner_get_child(child, BMECAT_NODE_FEATURE_ID, fid, 0))
+		{
+			return child;
+		}
 	}
 
 	// No matching node found
@@ -419,18 +419,15 @@ int catner_add_article_image(catner_state_s *cs, const char *aid, const char *mi
 	xmlNodePtr images = libcatner_get_child(article, BMECAT_NODE_ARTICLE_IMAGES, NULL, 1);
 
 	// See if there is already an image with that path in this ARTICLE
-	xmlNodePtr image  = images->children;
-	while (image != NULL)
+	xmlNodePtr image = NULL;
+	for (image = images->children; image; image = image->next)
 	{
 		// Check if this MIME node has a MIME_SOURCE node with the given `path` value
-		if (libcatner_get_child(image, BMECAT_NODE_ARTICLE_IMAGE_PATH, BAD_CAST path, 0) != NULL)
+		if (libcatner_get_child(image, BMECAT_NODE_ARTICLE_IMAGE_PATH, BAD_CAST path, 0))
 		{
 			// If so, this image already exists, we're done
 			return 1;
 		}
-
-		// Try the next image
-		image = image->next;
 	}
 
 	// No such image present yet, let's create and return it
@@ -449,7 +446,8 @@ int catner_add_article_image(catner_state_s *cs, const char *aid, const char *mi
  *      a main unit that has a factor other than "1" ("1.0", "1.00", ...),
  *      so should we check for that? etc etc etc
  */
-int catner_add_article_unit(catner_state_s *cs, const char *aid, const char *code, const char *factor, int main)
+int catner_add_article_unit(catner_state_s *cs, const char *aid, 
+		const char *code, const char *factor, int main)
 {
 	xmlNodePtr article = libcatner_get_article(cs->articles, BAD_CAST aid);
 	if (article == NULL)
@@ -464,23 +462,23 @@ int catner_add_article_unit(catner_state_s *cs, const char *aid, const char *cod
 	xmlNodePtr details = libcatner_get_child(article, BMECAT_NODE_ARTICLE_UNITS, NULL, 1);
 
 	// Iterate ARTICLE_ORDER_DETAILS' children to find ALTERNATIVE_UNIT nodes
-	xmlNodePtr child = details->children;
 	xmlNodePtr alt_unit = NULL;
-	while (child != NULL)
+	xmlNodePtr child = details->children;
+	for (child = details->children; child; child = child->next)
 	{
 		// We're only interested in ALTERNATIVE_UNIT nodes
-		if (xmlStrcmp(child->name, BMECAT_NODE_ARTICLE_ALT_UNIT) == 0)
+		if (xmlStrcmp(child->name, BMECAT_NODE_ARTICLE_ALT_UNIT) != 0)
 		{
-			// Check if this ALTERNATIVE_UNIT has the unit code we're looking for
-			if (libcatner_get_child(child, BMECAT_NODE_ARTICLE_UNIT_CODE, BAD_CAST code, 0) != NULL)
-			{
-				// If so, remember this node and stop iterating
-				alt_unit = child;
-				break;
-			}
+			continue;
 		}
-
-		child = child->next;
+		
+		// Check if this ALTERNATIVE_UNIT has the unit code we're looking for
+		if (libcatner_get_child(child, BMECAT_NODE_ARTICLE_UNIT_CODE, BAD_CAST code, 0))
+		{
+			// If so, remember this node and stop iterating
+			alt_unit = child;
+			break;
+		}
 	}
 
 	xmlNodePtr main_unit = libcatner_get_child(details, BMECAT_NODE_ARTICLE_UNIT, NULL, 0);
@@ -531,21 +529,20 @@ int catner_add_article_category(catner_state_s *cs, const char *aid, const char 
 		return -1;
 	}
 
-	xmlNodePtr child = article->children;
-	while (child != NULL)
+	xmlNodePtr child = NULL;
+	for (child = article->children; child; child = child->next)
 	{
 		// We are only interested in ARTICLE_REFERENCE nodes
-		if (xmlStrcmp(child->name, BAD_CAST BMECAT_NODE_ARTICLE_CATEGORY) == 0)
+		if (xmlStrcmp(child->name, BAD_CAST BMECAT_NODE_ARTICLE_CATEGORY) != 0)
 		{
-			if (libcatner_get_child(child, BMECAT_NODE_ARTICLE_CATEGORY_ID, BAD_CAST cat, 0) != NULL)
-			{
-				// Already exists
-				return 1;
-			}
+			continue;
 		}
-		
-		// No match, check next node
-		child = child->next;
+	
+		if (libcatner_get_child(child, BMECAT_NODE_ARTICLE_CATEGORY_ID, BAD_CAST cat, 0))
+		{
+			// Already exists
+			return 1;
+		}
 	}
 
 	// No such category present yet, let's add it
@@ -676,20 +673,20 @@ int catner_add_article_feature_variant(catner_state_s *cs, const char *aid, cons
 	xmlNodePtr variants = libcatner_get_child(feature, BMECAT_NODE_VARIANTS, NULL, 1);
 	
 	// Iterate over all VARIANT child nodes
-	xmlNodePtr child = variants->children;
-	while (child != NULL)
+	xmlNodePtr child = NULL;
+	for (child = variants->children; child; child = child->next)
 	{
 		// We are only interested in VARIANT nodes
-		if (xmlStrcmp(child->name, BMECAT_NODE_VARIANT) == 0)
+		if (xmlStrcmp(child->name, BMECAT_NODE_VARIANT) != 0)
 		{
-			// If this VARIANT has a VID and its content matches vid, we're done
-			if (libcatner_get_child(child, BMECAT_NODE_VARIANT_ID, BAD_CAST vid, 0) != NULL)
-			{
-				return 1;
-			}
+			continue;
 		}
-
-		child = child->next;
+	
+		// If this VARIANT has a VID and its content matches vid, we're done
+		if (libcatner_get_child(child, BMECAT_NODE_VARIANT_ID, BAD_CAST vid, 0))
+		{
+			return 1;
+		}
 	}
 	
 	// VARIANT does not yet exist, let's create it
@@ -799,7 +796,7 @@ int main(int argc, char **argv)
 	LIBXML_TEST_VERSION;
 
 	catner_state_s *cs = catner_init();
-	catner_set_generator(cs, "not great"); // This should not show up
+	catner_set_generator(cs, "BAD GENERATOR"); // This should not show up
 	catner_set_generator(cs, CATNER_NAME);
 	catner_set_locale(cs, "DE"); // This should not show up
 	catner_set_locale(cs, "EN");
@@ -808,7 +805,7 @@ int main(int argc, char **argv)
 	catner_add_territory(cs, "DE"); // This should not show up
 	catner_add_article(cs, "SRTS62", "Sicherheitsroststufe ECO X12", "Total preiswerte Stufe, mach die mal jetzt rein da, komm, mach.");
 	catner_add_article(cs, "SRTS63", "Sicherheitsroststufe Schlingenhorst", "Super geile Stufe, die sogar mit Schlappen zu besteigen ist!");
-	catner_add_article(cs, "SRTS63", "This should not exist.", "Because SRTS63 has been added before!"); // This should not show up
+	catner_add_article(cs, "SRTS63", "BAD! This should not exist.", "Because SRTS63 has been added before!"); // This should not show up
 	catner_add_article_image(cs, "SRTS63", "image/jpg", "images/srts63-1.jpg");
 	catner_add_article_image(cs, "SRTS63", "image/jpg", "images/srts63-2.jpg");
 	catner_add_article_image(cs, "SRTS63", "image/jpg", "images/srts63-2.jpg"); // This should not show up
@@ -819,10 +816,10 @@ int main(int argc, char **argv)
 	catner_add_article_unit(cs, "SRTS63", "PCE", "1", 1);
 	catner_add_article_unit(cs, "SRTS63", "MTR", "6", 1);
 	catner_add_article_feature(cs, "SRTS63", "f_breite", "Breite",   "Breite (mm)", NULL, "Success");
-	catner_add_article_feature(cs, "SRTS63", "f_breite", "Breite 2", "Breite (mm)", NULL, "Failure"); // This should not show up
+	catner_add_article_feature(cs, "SRTS63", "f_breite", "Breite 2", "Breite (mm)", NULL, "BAD"); // This should not show up
 	catner_add_article_feature(cs, "SRTS63", "f_laenge", "Laenge",   "Laenge (mm)", NULL, "Success");
 	catner_add_article_feature_variant(cs, "SRTS63", "f_breite", "01", "400");
-	catner_add_article_feature_variant(cs, "SRTS63", "f_breite", "01", "999"); // This should not show up
+	catner_add_article_feature_variant(cs, "SRTS63", "f_breite", "01", "BAD"); // This should not show up
 	catner_add_article_feature_variant(cs, "SRTS63", "f_laenge", "01", "1200");
 	catner_add_article_feature_variant(cs, "SRTS63", "f_breite", "02", "400");
 	catner_add_article_feature_variant(cs, "SRTS63", "f_laenge", "02", "1500");
