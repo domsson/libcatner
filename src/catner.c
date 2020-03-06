@@ -7,9 +7,11 @@
 #include "catner.h"
 
 /*
- * TODO documentation
+ * Add a node with the given `name` to the given parent node. If `value` is 
+ * given, a text node will be created, otherwise a regular node. 
+ * Returns a reference to the newly created node. 
  */
-xmlNodePtr libcatner_add_child(const xmlNodePtr parent, const xmlChar *name, 
+static inline xmlNodePtr libcatner_add_child(const xmlNodePtr parent, const xmlChar *name, 
 		const xmlChar *value)
 {
 	// Create empty (non-text) or text node, depending on value
@@ -18,9 +20,9 @@ xmlNodePtr libcatner_add_child(const xmlNodePtr parent, const xmlChar *name,
 }
 
 /*
- * TODO documentation
+ * Deletes and frees the given node. 
  */
-void libcatner_del_child(const xmlNodePtr node)
+static inline void libcatner_del_node(const xmlNodePtr node)
 {
 	xmlUnlinkNode(node);
 	xmlFreeNode(node);
@@ -191,7 +193,7 @@ xmlNodePtr libcatner_get_root(const xmlDocPtr doc, int create)
  * Returns the HEADER node (BMECAT_NODE_HEADER), if present, otherwise NULL.
  * If create is `1`, the header node will be created if it doesn't exist yet.
  */
-xmlNodePtr libcatner_get_header(const xmlNodePtr root, int create)
+static inline xmlNodePtr libcatner_get_header(const xmlNodePtr root, int create)
 {
 	return libcatner_get_child(root, BMECAT_NODE_HEADER, NULL, create);
 }
@@ -200,7 +202,7 @@ xmlNodePtr libcatner_get_header(const xmlNodePtr root, int create)
  * Returns the node containing all ARTICLE nodes ("T_NEW_CATALOG").
  * If create is `1`, the articles node will be created if it doesn't exist yet.
  */
-xmlNodePtr libcatner_get_articles(const xmlNodePtr root, int create)
+static inline xmlNodePtr libcatner_get_articles(const xmlNodePtr root, int create)
 {
 	return libcatner_get_child(root, BMECAT_NODE_ARTICLES, NULL, create);
 }
@@ -209,9 +211,18 @@ xmlNodePtr libcatner_get_articles(const xmlNodePtr root, int create)
  * Returns the CATALOG node within the given node, if present, otherwise NULL.
  * If create is `1`, the catalog node will be created if it doesn't exist yet.
  */
-xmlNodePtr libcatner_get_catalog(xmlNodePtr header, int create)
+static inline xmlNodePtr libcatner_get_catalog(xmlNodePtr header, int create)
 {
 	return libcatner_get_child(header, BMECAT_NODE_CATALOG, NULL, create);
+}
+
+/*
+ * Returns the GENERATOR_INFO node from the HEADER, if present, otherwise NULL.
+ * If create is `1`, the generator node will be created if it didn't exist yet.
+ */
+static inline xmlNodePtr libcatner_get_generator(xmlNodePtr header, int create)
+{
+	return libcatner_get_child(header, BMECAT_NODE_GENERATOR, BAD_CAST "", create);
 }
 
 /*
@@ -278,7 +289,7 @@ xmlNodePtr libcatner_get_feature(const xmlNodePtr article, const xmlChar *fid)
  * Returns the number of bytes (including the terminating null-byte), that was 
  * or would've been required to copy the entire content, or 0 on error.
  */
-size_t libcatner_get_content(xmlNodePtr node, char *buf, size_t len)
+size_t libcatner_cpy_content(xmlNodePtr node, char *buf, size_t len)
 {
 	// Return empty buffer if node is NULL 
 	if (node == NULL)
@@ -321,7 +332,7 @@ size_t libcatner_get_content(xmlNodePtr node, char *buf, size_t len)
 size_t catner_get_locale(catner_state_s *cs, char *buf, size_t len)
 {
 	xmlNodePtr locale = libcatner_get_child(cs->catalog, BMECAT_NODE_LOCALE, NULL, 0);
-	return libcatner_get_content(locale, buf, len);
+	return libcatner_cpy_content(locale, buf, len);
 }
 
 /*
@@ -375,8 +386,41 @@ int catner_add_territory(catner_state_s *cs, const char *value)
 	return t == NULL ? -1 : 0;
 }
 
+size_t catner_get_generator(catner_state_s *cs, char *buf, size_t len)
+{
+	return libcatner_cpy_content(cs->generator, buf, len);
+}
+
+void catner_del_generator(catner_state_s *cs)
+{
+	if (cs->generator == NULL)
+	{
+		return;
+	}
+	
+	libcatner_del_node(cs->generator);
+}
+
 /*
- * Set the GENERATOR_INFO node to the given value.
+ * Add the GENERATOR_INFO node and set it to the given `value`.
+ * If the node already exists, it will not be changed and 1 is returned.
+ * Otherwise, the node will be created and the function returns 0.
+ */
+int catner_add_generator(catner_state_s *cs, const char *value)
+{
+	if (cs->generator)
+	{
+		// Already exists
+		return 1;
+	}
+
+	libcatner_add_child(cs->header, BMECAT_NODE_GENERATOR, BAD_CAST value);
+	return 0;
+}
+
+/*
+ * Set the GENERATOR_INFO node to the given value. If the node didn't exist
+ * yet, it will be created.
  *
  * This node is optional and gives information on the software that 
  * was used to generate the BMEcat file.
@@ -385,12 +429,46 @@ int catner_set_generator(catner_state_s *cs, const char *value)
 {
 	if (cs->generator == NULL)
 	{
-		cs->generator = xmlNewTextChild(cs->header, NULL, BMECAT_NODE_GENERATOR, BAD_CAST value);
+		cs->generator = libcatner_add_child(cs->header, BMECAT_NODE_GENERATOR, BAD_CAST value);
 		return 0;
 	}
 
 	xmlNodeSetContent(cs->generator, BAD_CAST value);
 	return 0;
+}
+
+size_t catner_get_article_aid_c(catner_state_s *cs, char *buf, size_t len)
+{
+	if (cs->_curr_article == NULL)
+	{
+		return libcatner_cpy_content(NULL, buf, len);
+	}
+
+	xmlNodePtr aid = libcatner_get_child(cs->_curr_article, BMECAT_NODE_ARTICLE_ID, NULL, 0);
+	return libcatner_cpy_content(aid, buf, len);
+}
+
+size_t catner_get_article_title_c(catner_state_s *cs, char *buf, size_t len)
+{
+	if (cs->_curr_article == NULL)
+	{
+		return libcatner_cpy_content(NULL, buf, len);
+	}
+
+	xmlNodePtr title = libcatner_get_child(cs->_curr_article, BMECAT_NODE_ARTICLE_TITLE, NULL, 0);
+	return libcatner_cpy_content(title, buf, len);
+}
+
+size_t catner_get_article_title(catner_state_s *cs, const char *aid, char *buf, size_t len)
+{
+	xmlNodePtr article = libcatner_get_article(cs->articles, BAD_CAST aid);
+	if (article == NULL)
+	{
+		return libcatner_cpy_content(NULL, buf, len);
+	}
+
+	xmlNodePtr title = libcatner_get_child(article, BMECAT_NODE_ARTICLE_TITLE, NULL, 0);
+	return libcatner_cpy_content(title, buf, len);
 }
 
 int libcatner_set_article_title(xmlNodePtr article, const xmlChar *value)
@@ -433,6 +511,29 @@ int catner_set_article_title(catner_state_s *cs, const char *aid, const char *ti
 	}
 
 	return libcatner_set_article_title(article, BAD_CAST title);
+}
+
+size_t catner_get_article_descr_c(catner_state_s *cs, char *buf, size_t len)
+{
+	if (cs->_curr_article == NULL)
+	{
+		return libcatner_cpy_content(NULL, buf, len);
+	}
+
+	xmlNodePtr descr = libcatner_get_child(cs->_curr_article, BMECAT_NODE_ARTICLE_DESCR, NULL, 0);
+	return libcatner_cpy_content(descr, buf, len);
+}
+
+size_t catner_get_article_descr(catner_state_s *cs, const char *aid, char *buf, size_t len)
+{
+	xmlNodePtr article = libcatner_get_article(cs->articles, BAD_CAST aid);
+	if (article == NULL)
+	{
+		return libcatner_cpy_content(NULL, buf, len);
+	}
+
+	xmlNodePtr descr = libcatner_get_child(article, BMECAT_NODE_ARTICLE_DESCR, NULL, 0);
+	return libcatner_cpy_content(descr, buf, len);
 }
 
 int libcatner_set_article_descr(xmlNodePtr article, xmlChar *value)
@@ -1130,11 +1231,11 @@ catner_state_s *catner_init()
 	catner_state_s empty_state = { 0 };
 	*state = empty_state;
 
-	state->doc      = xmlNewDoc(BAD_CAST CATNER_XML_VERSION);
-	state->root     = libcatner_get_root(state->doc, 1);
-	state->header   = libcatner_get_header(state->root, 1);
-	state->articles = libcatner_get_articles(state->root, 1);
-	state->catalog  = libcatner_get_catalog(state->header, 1);
+	state->doc       = xmlNewDoc(BAD_CAST CATNER_XML_VERSION);
+	state->root      = libcatner_get_root(state->doc, 1);
+	state->header    = libcatner_get_header(state->root, 1);
+	state->articles  = libcatner_get_articles(state->root, 1);
+	state->catalog   = libcatner_get_catalog(state->header, 1);
 
 	return state;
 }
@@ -1179,6 +1280,9 @@ catner_state_s *catner_load(const char *path, int amend)
 	{
 		return NULL;
 	}
+
+	// Find (but don't create) the optional GENERATOR_INFO node
+	state->generator = libcatner_get_generator(state->header, 0);
 	
 	return state;
 }
