@@ -6,12 +6,24 @@
 #include "bmecat.h"
 #include "catner.h"
 
+/*
+ * TODO documentation
+ */
 xmlNodePtr libcatner_add_child(const xmlNodePtr parent, const xmlChar *name, 
 		const xmlChar *value)
 {
 	// Create empty (non-text) or text node, depending on value
 	return value == NULL ? xmlNewChild(parent, NULL, name, NULL) :
 		xmlNewTextChild(parent, NULL, name, value);
+}
+
+/*
+ * TODO documentation
+ */
+void libcatner_del_child(const xmlNodePtr node)
+{
+	xmlUnlinkNode(node);
+	xmlFreeNode(node);
 }
 
 /*
@@ -379,9 +391,15 @@ int catner_set_article_descr(catner_state_s *cs, const char *aid, const char *de
  * Add a new article with the given ID (SUPPLIER_AID), title and description.
  * If an article with the given ID already exists, this function returns 1.
  * Otherwise, the article will be created and the function returns 0.
+ * On error (for example, aid is the empty string), -1 will be returned.
  */
 int catner_add_article(catner_state_s *cs, const char *aid, const char *title, const char *descr)
 {
+	if (xmlStrlen(BAD_CAST aid) == 0)
+	{
+		return -1;
+	}
+
 	// Find the article with the given AID
 	if (libcatner_get_article(cs->articles, BAD_CAST aid) != NULL)
 	{
