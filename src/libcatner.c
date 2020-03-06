@@ -3,8 +3,8 @@
 #include <libxml/xmlstring.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
-#include "bmecat.h"
-#include "catner.h"
+#include "libcatner_bmecat.h"
+#include "libcatner.h"
 
 /*
  * Add a node with the given `name` to the given parent node. If `value` is 
@@ -22,10 +22,16 @@ static inline xmlNodePtr libcatner_add_child(const xmlNodePtr parent, const xmlC
 /*
  * Deletes and frees the given node. 
  */
-static inline void libcatner_del_node(const xmlNodePtr node)
+static inline int libcatner_del_node(const xmlNodePtr node)
 {
+	if (node == NULL)
+	{
+		return -1;
+	}
+
 	xmlUnlinkNode(node);
 	xmlFreeNode(node);
+	return 0;
 }
 
 /*
@@ -283,6 +289,37 @@ xmlNodePtr libcatner_get_feature(const xmlNodePtr article, const xmlChar *fid)
 	return NULL;
 }
 
+xmlNodePtr libcatner_get_variant(const xmlNodePtr feature, const xmlChar *vid)
+{
+	// Find the VARIANTS node, which holds all variants
+	xmlNodePtr variants = libcatner_get_child(feature, BMECAT_NODE_VARIANTS, NULL, 0);
+
+	// If VARIANTS doesn't exist, then no variants can exists
+	if (variants == NULL)
+	{
+		return NULL;
+	}
+
+	xmlNodePtr child = NULL;
+	for (child = variants->children; child; child = child->next)
+	{
+		// We are only interested in VARIANT nodes
+		if (xmlStrcmp(child->name, BMECAT_NODE_VARIANT) != 0)
+		{
+			continue;
+		}
+
+		// If this VARIANT has a SUPPLIED_AID_SUPPLEMENT and its content matches VID, we're done
+		if (libcatner_get_child(child, BMECAT_NODE_VARIANT_ID, vid, 0))
+		{
+			return child;
+		}
+	}
+
+	// No matching node found
+	return NULL;
+}
+
 /*
  * Extract the content from the given node and copy it into the given buffer. 
  * If the buffer isn't big enough to hold the content, truncation will happen. 
@@ -327,6 +364,28 @@ size_t libcatner_cpy_content(xmlNodePtr node, char *buf, size_t len)
 	// the terminating null-byte) which might be less than what was used in 
 	// case the provided buffer wasn't sufficient
 	return content_len;
+}
+
+size_t libcatner_num_article_features(xmlNodePtr article)
+{
+	xmlNodePtr features = libcatner_get_child(article, BMECAT_NODE_FEATURES, NULL, 0);
+	if (features == NULL)
+	{
+		return 0;
+	}
+
+	return libcatner_num_children(features, BMECAT_NODE_FEATURE, NULL);
+}
+
+size_t libcatner_num_article_feature_variants(xmlNodePtr feature)
+{
+	xmlNodePtr variants = libcatner_get_child(feature, BMECAT_NODE_VARIANTS, NULL, 0);
+	if (variants == NULL)
+	{
+		return 0;
+	}
+
+	return libcatner_num_children(variants, BMECAT_NODE_VARIANT, NULL);
 }
 
 size_t catner_get_locale(catner_state_s *cs, char *buf, size_t len)
@@ -393,12 +452,63 @@ size_t catner_get_generator(catner_state_s *cs, char *buf, size_t len)
 
 void catner_del_generator(catner_state_s *cs)
 {
-	if (cs->generator == NULL)
+	libcatner_del_node(cs->generator);
+}
+
+void catner_del_territory(catner_state_s *cs, const char *value)
+{
+	xmlNodePtr territory = libcatner_get_child(cs->catalog, BMECAT_NODE_TERRITORY, BAD_CAST value, 0);
+	libcatner_del_node(territory);
+}
+
+void catner_del_article(catner_state_s *cs, const char *aid)
+{
+	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
+		cs->_curr_article;
+
+	libcatner_del_node(article);
+}
+
+void catner_del_article_feature(catner_state_s *cs, const char *aid, 
+		const char *fid)
+{
+	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
+		cs->_curr_article;
+
+	if (article == NULL)
 	{
 		return;
 	}
-	
-	libcatner_del_node(cs->generator);
+
+	xmlNodePtr feature = fid ? libcatner_get_feature(article, BAD_CAST fid) :
+		cs->_curr_feature;
+
+	libcatner_del_node(feature);
+}
+
+void catner_del_article_feature_variant(catner_state_s *cs, const char *aid, 
+		const char *fid, const char *vid)
+{
+	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
+		cs->_curr_article;
+
+	if (article == NULL)
+	{
+		return;
+	}
+
+	xmlNodePtr feature = fid ? libcatner_get_feature(article, BAD_CAST fid) :
+		cs->_curr_feature;
+
+	if (feature == NULL)
+	{
+		return;
+	}
+
+	xmlNodePtr variant = vid ? libcatner_get_variant(feature, BAD_CAST vid) : 
+		cs->_curr_variant;
+
+	libcatner_del_node(variant);
 }
 
 /*
@@ -723,17 +833,6 @@ size_t catner_num_articles(catner_state_s *cs)
 	return libcatner_num_children(cs->articles, BMECAT_NODE_ARTICLE, NULL);
 }
 
-size_t libcatner_num_article_features(xmlNodePtr article)
-{
-	xmlNodePtr features = libcatner_get_child(article, BMECAT_NODE_FEATURES, NULL, 0);
-	if (features == NULL)
-	{
-		return 0;
-	}
-
-	return libcatner_num_children(features, BMECAT_NODE_FEATURE, NULL);
-}
-
 size_t catner_num_article_features(catner_state_s *cs, const char *aid)
 {
 	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
@@ -747,16 +846,6 @@ size_t catner_num_article_features(catner_state_s *cs, const char *aid)
 	return libcatner_num_article_features(article);
 }
 
-size_t libcatner_num_article_feature_variants(xmlNodePtr feature)
-{
-	xmlNodePtr variants = libcatner_get_child(feature, BMECAT_NODE_VARIANTS, NULL, 0);
-	if (variants == NULL)
-	{
-		return 0;
-	}
-
-	return libcatner_num_children(variants, BMECAT_NODE_VARIANT, NULL);
-}
 
 size_t catner_num_article_feature_variants(catner_state_s *cs, const char *aid, const char *fid)
 {
