@@ -30,12 +30,18 @@ typedef struct catner_state catner_state_s;
 
 struct catner_state
 {
-	xmlDocPtr  tree;
-	xmlNodePtr root;
-	xmlNodePtr header;
-	xmlNodePtr catalog;
-	xmlNodePtr generator;
-	xmlNodePtr articles;
+	char *path;		// Path to XML file, if document was loaded from one
+	
+	xmlDocPtr  doc;		// XML document pointer
+	xmlNodePtr root;	// Pointer to BMECAT node
+	xmlNodePtr header;	// Pointer to HEADER
+	xmlNodePtr catalog;	// Pointer to CATALOG node
+	xmlNodePtr generator;	// Pointer to GENERATOR node
+	xmlNodePtr articles;	// Pointer to T_NEW_CATALOG node
+
+	xmlNodePtr _curr_article;	// For iterating purposes
+	xmlNodePtr _curr_feature;	// For iterating purposes
+	xmlNodePtr _curr_variant;	// For iterating purposes
 };
 
 #endif

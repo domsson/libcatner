@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<BMECAT xmlns="http://www.bmecat.org/bmecat/2005.1" version="2005">
+  <HEADER>
+    <CATALOG>
+      <LOCALE>EN</LOCALE>
+      <TERRITORY>DE</TERRITORY>
+      <TERRITORY>AT</TERRITORY>
+    </CATALOG>
+    <GENERATOR_INFO>catner</GENERATOR_INFO>
+  <GENERATOR_INFO>THIS HAS CHANGED, COOL!</GENERATOR_INFO></HEADER>
+  <T_NEW_CATALOG>
+    <ARTICLE>
+      <SUPPLIER_AID>SRTS62</SUPPLIER_AID>
+      <ARTICLE_DETAILS>
+        <DESCRIPTION_SHORT>Sicherheitsroststufe ECO X12</DESCRIPTION_SHORT>
+        <DESCRIPTION_LONG>Total preiswerte Stufe, mach die mal jetzt rein da, komm, mach.</DESCRIPTION_LONG>
+      </ARTICLE_DETAILS>
+    </ARTICLE>
+    <ARTICLE>
+      <SUPPLIER_AID>SRTS63</SUPPLIER_AID>
+      <ARTICLE_DETAILS>
+        <DESCRIPTION_SHORT>Sicherheitsroststufe Schlingenhorst</DESCRIPTION_SHORT>
+        <DESCRIPTION_LONG>Super geile Stufe, die sogar mit Schlappen zu besteigen ist!</DESCRIPTION_LONG>
+      </ARTICLE_DETAILS>
+      <MIME_INFO>
+        <MIME>
+          <MIME_TYPE>image/jpg</MIME_TYPE>
+          <MIME_SOURCE>images/srts63-1.jpg</MIME_SOURCE>
+        </MIME>
+        <MIME>
+          <MIME_TYPE>image/jpg</MIME_TYPE>
+          <MIME_SOURCE>images/srts63-2.jpg</MIME_SOURCE>
+        </MIME>
+      </MIME_INFO>
+      <ARTICLE_REFERENCE>
+        <CATALOG_ID>10010000</CATALOG_ID>
+      </ARTICLE_REFERENCE>
+      <ARTICLE_REFERENCE>
+        <CATALOG_ID>10020000</CATALOG_ID>
+      </ARTICLE_REFERENCE>
+      <ARTICLE_ORDER_DETAILS>
+        <ORDER_UNIT>MTR</ORDER_UNIT>
+        <ALTERNATIVE_UNIT>
+          <ALTERNATIVE_UNIT_CODE>PCE</ALTERNATIVE_UNIT_CODE>
+          <ALTERNATIVE_UNIT_FACTOR>1</ALTERNATIVE_UNIT_FACTOR>
+        </ALTERNATIVE_UNIT>
+        <ALTERNATIVE_UNIT>
+          <ALTERNATIVE_UNIT_CODE>MTR</ALTERNATIVE_UNIT_CODE>
+          <ALTERNATIVE_UNIT_FACTOR>6</ALTERNATIVE_UNIT_FACTOR>
+        </ALTERNATIVE_UNIT>
+      </ARTICLE_ORDER_DETAILS>
+      <ARTICLE_FEATURES>
+        <FEATURE>
+          <FID>f_breite</FID>
+          <FNAME>Breite</FNAME>
+          <FDESCR>Breite (mm)</FDESCR>
+          <FUNIT>00</FUNIT>
+          <FORDER>1</FORDER>
+          <FVALUE>Success</FVALUE>
+          <VARIANTS>
+            <VARIANT>
+              <SUPPLIER_AID_SUPPLEMENT>01</SUPPLIER_AID_SUPPLEMENT>
+              <FVALUE>400</FVALUE>
+            </VARIANT>
+            <VARIANT>
+              <SUPPLIER_AID_SUPPLEMENT>02</SUPPLIER_AID_SUPPLEMENT>
+              <FVALUE>400</FVALUE>
+            </VARIANT>
+          </VARIANTS>
+        </FEATURE>
+        <FEATURE>
+          <FID>f_laenge</FID>
+          <FNAME>Laenge</FNAME>
+          <FDESCR>Laenge (mm)</FDESCR>
+          <FUNIT>00</FUNIT>
+          <FORDER>2</FORDER>
+          <FVALUE>Success</FVALUE>
+          <VARIANTS>
+            <VARIANT>
+              <SUPPLIER_AID_SUPPLEMENT>01</SUPPLIER_AID_SUPPLEMENT>
+              <FVALUE>1200</FVALUE>
+            </VARIANT>
+            <VARIANT>
+              <SUPPLIER_AID_SUPPLEMENT>02</SUPPLIER_AID_SUPPLEMENT>
+              <FVALUE>1500</FVALUE>
+            </VARIANT>
+          </VARIANTS>
+        </FEATURE>
+      </ARTICLE_FEATURES>
+    </ARTICLE>
+  </T_NEW_CATALOG>
+</BMECAT>
