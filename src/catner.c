@@ -437,7 +437,7 @@ int catner_set_generator(catner_state_s *cs, const char *value)
 	return 0;
 }
 
-size_t catner_get_article_aid_c(catner_state_s *cs, char *buf, size_t len)
+size_t catner_get_article_aid(catner_state_s *cs, char *buf, size_t len)
 {
 	if (cs->_curr_article == NULL)
 	{
@@ -448,20 +448,11 @@ size_t catner_get_article_aid_c(catner_state_s *cs, char *buf, size_t len)
 	return libcatner_cpy_content(aid, buf, len);
 }
 
-size_t catner_get_article_title_c(catner_state_s *cs, char *buf, size_t len)
-{
-	if (cs->_curr_article == NULL)
-	{
-		return libcatner_cpy_content(NULL, buf, len);
-	}
-
-	xmlNodePtr title = libcatner_get_child(cs->_curr_article, BMECAT_NODE_ARTICLE_TITLE, NULL, 0);
-	return libcatner_cpy_content(title, buf, len);
-}
-
 size_t catner_get_article_title(catner_state_s *cs, const char *aid, char *buf, size_t len)
 {
-	xmlNodePtr article = libcatner_get_article(cs->articles, BAD_CAST aid);
+	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) : 
+		cs->_curr_article;
+
 	if (article == NULL)
 	{
 		return libcatner_cpy_content(NULL, buf, len);
@@ -471,8 +462,20 @@ size_t catner_get_article_title(catner_state_s *cs, const char *aid, char *buf, 
 	return libcatner_cpy_content(title, buf, len);
 }
 
-int libcatner_set_article_title(xmlNodePtr article, const xmlChar *value)
+/*
+ * Sets the title (DESCRIPTION_SHORT) of the article with the given AID. 
+ * Returns -1 if no matching article could be found, otherwise 0.
+ */
+int catner_set_article_title(catner_state_s *cs, const char *aid, const char *value)
 {
+	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
+		cs->_curr_article;
+
+	if (article == NULL)
+	{
+		return -1;
+	}
+
 	// Find or create the ARTICLE_DETAILS node within this ARTICLE
 	xmlNodePtr details = libcatner_get_child(article, BMECAT_NODE_ARTICLE_DETAILS, NULL, 1);
 
@@ -480,53 +483,15 @@ int libcatner_set_article_title(xmlNodePtr article, const xmlChar *value)
 	xmlNodePtr title = libcatner_get_child(details, BMECAT_NODE_ARTICLE_TITLE, NULL, 1);
 	
 	// Set the text of the title node accordingly
-	xmlNodeSetContent(title, value);
+	xmlNodeSetContent(title, BAD_CAST value);
 	return 0;
-}
-
-/*
- * Sets the title (DESCRIPTION_SHORT) of the currently selected article. 
- * Returns -1 if no article is currently selected, otherwise 0.
- */
-int catner_set_article_title_c(catner_state_s *cs, const char *title)
-{
-	if (cs->_curr_article == NULL)
-	{
-		return -1;
-	}
-
-	return libcatner_set_article_title(cs->_curr_article, BAD_CAST title);
-}
-
-/*
- * Sets the title (DESCRIPTION_SHORT) of the article with the given AID. 
- * Returns -1 if no matching article could be found, otherwise 0.
- */
-int catner_set_article_title(catner_state_s *cs, const char *aid, const char *title)
-{
-	xmlNodePtr article = libcatner_get_article(cs->articles, BAD_CAST aid);
-	if (article == NULL)
-	{
-		return -1;
-	}
-
-	return libcatner_set_article_title(article, BAD_CAST title);
-}
-
-size_t catner_get_article_descr_c(catner_state_s *cs, char *buf, size_t len)
-{
-	if (cs->_curr_article == NULL)
-	{
-		return libcatner_cpy_content(NULL, buf, len);
-	}
-
-	xmlNodePtr descr = libcatner_get_child(cs->_curr_article, BMECAT_NODE_ARTICLE_DESCR, NULL, 0);
-	return libcatner_cpy_content(descr, buf, len);
 }
 
 size_t catner_get_article_descr(catner_state_s *cs, const char *aid, char *buf, size_t len)
 {
-	xmlNodePtr article = libcatner_get_article(cs->articles, BAD_CAST aid);
+	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
+		cs->_curr_article;
+
 	if (article == NULL)
 	{
 		return libcatner_cpy_content(NULL, buf, len);
@@ -536,8 +501,20 @@ size_t catner_get_article_descr(catner_state_s *cs, const char *aid, char *buf, 
 	return libcatner_cpy_content(descr, buf, len);
 }
 
-int libcatner_set_article_descr(xmlNodePtr article, xmlChar *value)
+/*
+ * Sets the description (DESCRIPTION_LONG) of the article with the given AID. 
+ * Returns -1 if no matching article could be found, otherwise 0.
+ */
+int catner_set_article_descr(catner_state_s *cs, const char *aid, const char *value)
 {
+	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) 
+		: cs->_curr_article;
+
+	if (article == NULL)
+	{
+		return -1;
+	}
+
 	// Find or create the ARTICLE_DETAILS node within this ARTICLE
 	xmlNodePtr details = libcatner_get_child(article, BMECAT_NODE_ARTICLE_DETAILS, NULL, 1);
 
@@ -545,37 +522,8 @@ int libcatner_set_article_descr(xmlNodePtr article, xmlChar *value)
 	xmlNodePtr descr = libcatner_get_child(details, BMECAT_NODE_ARTICLE_DESCR, NULL, 1);
 	
 	// Set the text of the title node accordingly
-	xmlNodeSetContent(descr, value);
+	xmlNodeSetContent(descr, BAD_CAST value);
 	return 0;
-}
-
-/*
- * Sets the description (DESCRIPTION_LONG) of the currently selected article. 
- * Returns -1 if no article is currently selected, otherwise 0.
- */
-int catner_set_article_descr_c(catner_state_s *cs, const char *descr)
-{
-	if (cs->_curr_article == NULL)
-	{
-		return -1;
-	}
-
-	return libcatner_set_article_descr(cs->_curr_article, BAD_CAST descr);
-}
-
-/*
- * Sets the description (DESCRIPTION_LONG) of the article with the given AID. 
- * Returns -1 if no matching article could be found, otherwise 0.
- */
-int catner_set_article_descr(catner_state_s *cs, const char *aid, const char *descr)
-{
-	xmlNodePtr article = libcatner_get_article(cs->articles, BAD_CAST aid);
-	if (article == NULL)
-	{
-		return -1;
-	}
-
-	return libcatner_set_article_descr(article, BAD_CAST descr);
 }
 
 /*
@@ -619,8 +567,16 @@ int catner_add_article(catner_state_s *cs, const char *aid, const char *title, c
 /*
  * TODO documentation
  */
-int libcatner_add_article_image(xmlNodePtr article, const xmlChar *mime, const xmlChar *path)
+int catner_add_article_image(catner_state_s *cs, const char *aid, const char *mime, const char *path)
 {
+	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
+		cs->_curr_article;
+
+	if (article == NULL)
+	{
+		return -1;
+	}
+	
 	// Find or create the MIME_INFO (image container) node for this article
 	xmlNodePtr images = libcatner_get_child(article, BMECAT_NODE_ARTICLE_IMAGES, NULL, 1);
 
@@ -629,7 +585,7 @@ int libcatner_add_article_image(xmlNodePtr article, const xmlChar *mime, const x
 	for (image = images->children; image; image = image->next)
 	{
 		// Check if this MIME node has a MIME_SOURCE node with the given `path` value
-		if (libcatner_get_child(image, BMECAT_NODE_ARTICLE_IMAGE_PATH, path, 0))
+		if (libcatner_get_child(image, BMECAT_NODE_ARTICLE_IMAGE_PATH, BAD_CAST path, 0))
 		{
 			// If so, this image already exists, we're done
 			return 1;
@@ -639,37 +595,10 @@ int libcatner_add_article_image(xmlNodePtr article, const xmlChar *mime, const x
 	// No such image present yet, let's create and return it
 	image = xmlNewChild(images, NULL, BMECAT_NODE_ARTICLE_IMAGE, NULL);
 	// TODO use xmlNewChild() or xmlNewTextChild()? Might need to ask kloeckner
-	xmlNewTextChild(image, NULL, BMECAT_NODE_ARTICLE_IMAGE_MIME, mime);
-	xmlNewTextChild(image, NULL, BMECAT_NODE_ARTICLE_IMAGE_PATH, path);
+	xmlNewTextChild(image, NULL, BMECAT_NODE_ARTICLE_IMAGE_MIME, BAD_CAST mime);
+	xmlNewTextChild(image, NULL, BMECAT_NODE_ARTICLE_IMAGE_PATH, BAD_CAST path);
 
 	return 0;
-}
-
-/*
- * TODO documentation
- */
-int catner_add_article_image_c(catner_state_s *cs, const char *mime, const char *path)
-{
-	if (cs->_curr_article == NULL)
-	{
-		return -1;
-	}
-	
-	return libcatner_add_article_image(cs->_curr_article, BAD_CAST mime, BAD_CAST path);
-}
-
-/*
- * TODO documentation
- */
-int catner_add_article_image(catner_state_s *cs, const char *aid, const char *mime, const char *path)
-{
-	xmlNodePtr article = libcatner_get_article(cs->articles, BAD_CAST aid);
-	if (article == NULL)
-	{
-		return -1;
-	}
-	
-	return libcatner_add_article_image(article, BAD_CAST mime, BAD_CAST path);
 }
 
 /*
@@ -679,11 +608,19 @@ int catner_add_article_image(catner_state_s *cs, const char *aid, const char *mi
  *      a main unit that has a factor other than "1" ("1.0", "1.00", ...),
  *      so should we check for that? etc etc etc
  */
-int libcatner_add_article_unit(xmlNodePtr article, const xmlChar *code, 
-		const xmlChar *factor, int main)
+int catner_add_article_unit(catner_state_s *cs, const char *aid, 
+		const char *code, const char *factor, int main)
 {
+	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
+		cs->_curr_article;
+
+	if (article == NULL)
+	{
+		return -1;
+	}
+
 	// Construct unit factor string based on user input and default value
-	const xmlChar *f = factor ? factor : BAD_CAST CATNER_DEF_UNIT_FACTOR;
+	const char *f = factor ? factor : CATNER_DEF_UNIT_FACTOR;
 
 	// Find the ARTICLE_ORDER_DETAILS node, which holds all units
 	xmlNodePtr details = libcatner_get_child(article, BMECAT_NODE_ARTICLE_UNITS, NULL, 1);
@@ -700,7 +637,7 @@ int libcatner_add_article_unit(xmlNodePtr article, const xmlChar *code,
 		}
 		
 		// Check if this ALTERNATIVE_UNIT has the unit code we're looking for
-		if (libcatner_get_child(child, BMECAT_NODE_ARTICLE_UNIT_CODE, code, 0))
+		if (libcatner_get_child(child, BMECAT_NODE_ARTICLE_UNIT_CODE, BAD_CAST code, 0))
 		{
 			// If so, remember this node and stop iterating
 			alt_unit = child;
@@ -713,54 +650,31 @@ int libcatner_add_article_unit(xmlNodePtr article, const xmlChar *code,
 	// No ORDER_UNIT (main unit) present yet, let's add it
 	if (main_unit == NULL)
 	{
-		main_unit = xmlNewTextChild(details, NULL, BMECAT_NODE_ARTICLE_UNIT, code);
+		main_unit = xmlNewTextChild(details, NULL, BMECAT_NODE_ARTICLE_UNIT, BAD_CAST code);
 	}
 
 	// ORDER_UNIT already present, let's update it if so requested 
 	if (main)
 	{
-		xmlNodeSetContent(main_unit, code);
+		xmlNodeSetContent(main_unit, BAD_CAST code);
 	}
 
 	// ALTERNATIVE_UNIT node wasn't present for this unit code, we'll add it now
 	if (alt_unit == NULL)
 	{
 		alt_unit = xmlNewChild(details, NULL, BMECAT_NODE_ARTICLE_ALT_UNIT, NULL);
-		xmlNewTextChild(alt_unit, NULL, BMECAT_NODE_ARTICLE_UNIT_CODE, code);
-		xmlNewTextChild(alt_unit, NULL, BMECAT_NODE_ARTICLE_UNIT_FACTOR, f);
+		xmlNewTextChild(alt_unit, NULL, BMECAT_NODE_ARTICLE_UNIT_CODE, BAD_CAST code);
+		xmlNewTextChild(alt_unit, NULL, BMECAT_NODE_ARTICLE_UNIT_FACTOR, BAD_CAST f);
 	}
 	
 	// ALTERNATIVE_UNIT was present, we'll just update it
 	else
 	{
 		xmlNodePtr unit_factor = libcatner_get_child(alt_unit, BMECAT_NODE_ARTICLE_UNIT_FACTOR, NULL, 0);
-		xmlNodeSetContent(unit_factor, f);
+		xmlNodeSetContent(unit_factor, BAD_CAST f);
 	}
 
 	return 0;
-}
-
-int catner_add_article_unit_c(catner_state_s *cs, const char *code, 
-		const char *factor, int main)
-{
-	if (cs->_curr_article == NULL)
-	{
-		return -1;
-	}
-
-	return libcatner_add_article_unit(cs->_curr_article, BAD_CAST code, BAD_CAST factor, main);
-}
-
-int catner_add_article_unit(catner_state_s *cs, const char *aid, 
-		const char *code, const char *factor, int main)
-{
-	xmlNodePtr article = libcatner_get_article(cs->articles, BAD_CAST aid);
-	if (article == NULL)
-	{
-		return -1;
-	}
-
-	return libcatner_add_article_unit(article, BAD_CAST code, BAD_CAST factor, main);
 }
 
 /*
@@ -771,18 +685,26 @@ int catner_add_article_unit(catner_state_s *cs, const char *aid,
  * `aid`, this function returns NULL. If the article already had the cateogry 
  * added, the function simply returns a reference to it.
  */
-int libcatner_add_article_category(xmlNodePtr article, const xmlChar *value)
+int catner_add_article_category(catner_state_s *cs, const char *aid, const char *value)
 {
+	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
+		cs->_curr_article;
+
+	if (article == NULL)
+	{
+		return -1;
+	}
+
 	xmlNodePtr child = NULL;
 	for (child = article->children; child; child = child->next)
 	{
 		// We are only interested in ARTICLE_REFERENCE nodes
-		if (xmlStrcmp(child->name, BAD_CAST BMECAT_NODE_ARTICLE_CATEGORY) != 0)
+		if (xmlStrcmp(child->name, BMECAT_NODE_ARTICLE_CATEGORY) != 0)
 		{
 			continue;
 		}
 	
-		if (libcatner_get_child(child, BMECAT_NODE_ARTICLE_CATEGORY_ID, value, 0))
+		if (libcatner_get_child(child, BMECAT_NODE_ARTICLE_CATEGORY_ID, BAD_CAST value, 0))
 		{
 			// Already exists
 			return 1;
@@ -791,30 +713,9 @@ int libcatner_add_article_category(xmlNodePtr article, const xmlChar *value)
 
 	// No such category present yet, let's add it
 	xmlNodePtr cat = xmlNewChild(article, NULL, BMECAT_NODE_ARTICLE_CATEGORY, NULL);
-	xmlNewTextChild(cat, NULL, BMECAT_NODE_ARTICLE_CATEGORY_ID, value);
+	xmlNewTextChild(cat, NULL, BMECAT_NODE_ARTICLE_CATEGORY_ID, BAD_CAST value);
 
 	return 0;
-}
-
-int catner_add_article_category_c(catner_state_s *cs, const char *cat)
-{
-	if (cs->_curr_article == NULL)
-	{
-		return -1;
-	}
-
-	return libcatner_add_article_category(cs->_curr_article, BAD_CAST cat);
-}
-
-int catner_add_article_category(catner_state_s *cs, const char *aid, const char *cat)
-{
-	xmlNodePtr article = libcatner_get_article(cs->articles, BAD_CAST aid);
-	if (article == NULL)
-	{
-		return -1;
-	}
-
-	return libcatner_add_article_category(article, BAD_CAST cat);
 }
 
 size_t catner_num_articles(catner_state_s *cs)
@@ -833,19 +734,11 @@ size_t libcatner_num_article_features(xmlNodePtr article)
 	return libcatner_num_children(features, BMECAT_NODE_FEATURE, NULL);
 }
 
-size_t catner_num_article_features_c(catner_state_s *cs)
-{
-	if (cs->_curr_article == NULL)
-	{
-		return 0;
-	}
-
-	return libcatner_num_article_features(cs->_curr_article);
-}
-
 size_t catner_num_article_features(catner_state_s *cs, const char *aid)
 {
-	xmlNodePtr article = libcatner_get_article(cs->articles, BAD_CAST aid);
+	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
+		cs->_curr_article;
+
 	if (article == NULL)
 	{
 		return 0;
@@ -865,25 +758,19 @@ size_t libcatner_num_article_feature_variants(xmlNodePtr feature)
 	return libcatner_num_children(variants, BMECAT_NODE_VARIANT, NULL);
 }
 
-size_t catner_num_article_feature_variants_c(catner_state_s *cs)
-{
-	if (cs->_curr_feature == NULL)
-	{
-		return 0;
-	}
-
-	return libcatner_num_article_feature_variants(cs->_curr_feature);
-}
-
 size_t catner_num_article_feature_variants(catner_state_s *cs, const char *aid, const char *fid)
 {
-	xmlNodePtr article = libcatner_get_article(cs->articles, BAD_CAST aid);
+	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
+		cs->_curr_article;
+
 	if (article == NULL)
 	{
 		return 0;
 	}
 
-	xmlNodePtr feature = libcatner_get_feature(article, BAD_CAST fid);
+	xmlNodePtr feature = fid ? libcatner_get_feature(article, BAD_CAST fid) :
+		cs->_curr_feature;
+
 	if (feature == NULL)
 	{
 		return 0;
@@ -898,12 +785,21 @@ size_t catner_num_article_feature_variants(catner_state_s *cs, const char *aid, 
  * TODO what values are/should be optional? should we use the same value
  *      for name and descr or leave it up to the user?
  */
-int libcatner_add_article_feature(xmlNodePtr article, const xmlChar *fid, 
-		const xmlChar *name, const xmlChar *descr, const xmlChar *unit,
-	       	const xmlChar *value)
+int catner_add_article_feature(catner_state_s *cs, const char *aid, const char *fid, 
+		const char *name, const char *descr, const char *unit, const char *value)
 {
+	// Find the ARTICLE node with the given AID
+	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) : 
+		cs->_curr_article;
+	
+	// Article doesn't exist, that's an error
+	if (article == NULL)
+	{
+		return -1;
+	}
+
 	// See if a FEATURE node with the given FID already exists
-	xmlNodePtr feature = libcatner_get_feature(article, fid);
+	xmlNodePtr feature = libcatner_get_feature(article, BAD_CAST fid);
 	
 	// Feature already exists, we're done
 	if (feature != NULL)
@@ -916,16 +812,16 @@ int libcatner_add_article_feature(xmlNodePtr article, const xmlChar *fid,
 	char o[8];
 	snprintf(o, 8, "%zu", num_features + 1);
 
-	const xmlChar *d = descr ? descr : name;
-	const xmlChar *u = unit  ? unit  : BAD_CAST CATNER_DEF_FEATURE_UNIT;
+	const char *d = descr ? descr : name;
+	const char *u = unit  ? unit  : CATNER_DEF_FEATURE_UNIT;
 
 	// Find or create ARTICLE_FEATURES node
 	xmlNodePtr features = libcatner_get_child(article, BMECAT_NODE_FEATURES, NULL, 1);
 	feature = xmlNewChild(features, NULL, BMECAT_NODE_FEATURE, NULL);
-	xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_ID,    fid);
-	xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_NAME,  name);
-	xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_DESCR, d);
-	xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_UNIT,  u);
+	xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_ID,    BAD_CAST fid);
+	xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_NAME,  BAD_CAST name);
+	xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_DESCR, BAD_CAST d);
+	xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_UNIT,  BAD_CAST u);
 	xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_ORDER, BAD_CAST o);
 
 	if (value != NULL)
@@ -936,23 +832,14 @@ int libcatner_add_article_feature(xmlNodePtr article, const xmlChar *fid,
 	return 0;
 }
 
-int catner_add_article_feature_c(catner_state_s *cs, const char *fid, 
-		const char *name, const char *descr, const char *unit, const char *value)
+/*
+ * TODO documentation
+ */
+int catner_add_article_feature_variant(catner_state_s *cs, const char *aid, 
+		const char *fid, const char *vid, const char *value)
 {
-	if (cs->_curr_article == NULL)
-	{
-		return -1;
-	}
-
-	return libcatner_add_article_feature(cs->_curr_article, BAD_CAST fid, 
-			BAD_CAST name, BAD_CAST descr, BAD_CAST unit, BAD_CAST value);
-}
-
-int catner_add_article_feature(catner_state_s *cs, const char *aid, const char *fid, 
-		const char *name, const char *descr, const char *unit, const char *value)
-{
-	// Find the ARTICLE node with the given AID
-	xmlNodePtr article = libcatner_get_article(cs->articles, BAD_CAST aid);
+	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
+		cs->_curr_article;
 	
 	// Article doesn't exist, that's an error
 	if (article == NULL)
@@ -960,16 +847,15 @@ int catner_add_article_feature(catner_state_s *cs, const char *aid, const char *
 		return -1;
 	}
 
-	return libcatner_add_article_feature(article, BAD_CAST fid, BAD_CAST name, 
-			BAD_CAST descr, BAD_CAST unit, BAD_CAST value);
-}
+	xmlNodePtr feature = fid ? libcatner_get_feature(article, BAD_CAST fid) :
+		cs->_curr_feature;
 
-/*
- * TODO documentation
- */
-int libcatner_add_article_feature_variant(xmlNodePtr feature, const xmlChar *vid,
-	    	const xmlChar *value)
-{
+	// Feature doesn't exist, that's an error
+	if (feature == NULL)
+	{
+		return -1;
+	}
+
 	// Find or create VARIANTS node
 	xmlNodePtr variants = libcatner_get_child(feature, BMECAT_NODE_VARIANTS, NULL, 1);
 	
@@ -984,7 +870,7 @@ int libcatner_add_article_feature_variant(xmlNodePtr feature, const xmlChar *vid
 		}
 	
 		// If this VARIANT has a VID and its content matches vid, we're done
-		if (libcatner_get_child(child, BMECAT_NODE_VARIANT_ID, vid, 0))
+		if (libcatner_get_child(child, BMECAT_NODE_VARIANT_ID, BAD_CAST vid, 0))
 		{
 			return 1;
 		}
@@ -992,51 +878,10 @@ int libcatner_add_article_feature_variant(xmlNodePtr feature, const xmlChar *vid
 	
 	// VARIANT does not yet exist, let's create it
 	xmlNodePtr variant = xmlNewChild(variants, NULL, BMECAT_NODE_VARIANT, NULL);
-	xmlNewTextChild(variant, NULL, BMECAT_NODE_VARIANT_ID, vid);
-	xmlNewTextChild(variant, NULL, BMECAT_NODE_VARIANT_VALUE, value);
+	xmlNewTextChild(variant, NULL, BMECAT_NODE_VARIANT_ID,    BAD_CAST vid);
+	xmlNewTextChild(variant, NULL, BMECAT_NODE_VARIANT_VALUE, BAD_CAST value);
 
 	return 0;
-}
-
-/*
- * TODO documentation
- */
-int catner_add_article_feature_variant_c(catner_state_s *cs, const char *vid, 
-		const char *value)
-{
-	if (cs->_curr_feature == NULL)
-	{
-		return -1;
-	}
-
-	return libcatner_add_article_feature_variant(cs->_curr_feature, 
-			BAD_CAST vid, BAD_CAST value);
-}
-
-/*
- * TODO documentation
- */
-int catner_add_article_feature_variant(catner_state_s *cs, const char *aid, 
-		const char *fid, const char *vid, const char *value)
-{
-	xmlNodePtr article = libcatner_get_article(cs->articles, BAD_CAST aid);
-	
-	// Article doesn't exist, that's an error
-	if (article == NULL)
-	{
-		return -1;
-	}
-
-	xmlNodePtr feature = libcatner_get_feature(article, BAD_CAST fid);
-
-	// Feature doesn't exist, that's an error
-	if (feature == NULL)
-	{
-		return -1;
-	}
-
-	return libcatner_add_article_feature_variant(feature, BAD_CAST vid, 
-			BAD_CAST value);
 }
 
 /*
