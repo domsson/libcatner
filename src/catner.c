@@ -739,7 +739,7 @@ int catner_next_article(catner_state_s *cs)
 	}
 
 	// Now we'll advance to the next article
-	cs->_curr_article = cs->_curr_article->next;
+	cs->_curr_article = libcatner_next_node(cs->_curr_article);
 	
 	// Change of article means we've got to reset selected feature and variant
 	cs->_curr_feature = NULL;
@@ -800,7 +800,7 @@ int catner_next_feature(catner_state_s *cs)
 	}
 
 	// Now we'll advance to the next feature
-	cs->_curr_feature = cs->_curr_article->next;
+	cs->_curr_feature = libcatner_next_node(cs->_curr_feature);
 
 	// Change of feature means we've to to reset the selected variant
 	cs->_curr_variant = NULL;
@@ -847,7 +847,7 @@ int catner_next_variant(catner_state_s *cs)
 	}
 
 	// No we'll advance to the next variant
-	cs->_curr_variant = cs->_curr_variant->next;
+	cs->_curr_variant = libcatner_next_node(cs->_curr_variant);
 
 	// Return 1 if we got something, otherwise 0
 	return (cs->_curr_variant != NULL);
