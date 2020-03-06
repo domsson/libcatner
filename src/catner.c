@@ -273,6 +273,58 @@ xmlNodePtr libcatner_get_feature(const xmlNodePtr article, const xmlChar *fid)
 }
 
 /*
+ * Extract the content from the given node and copy it into the given buffer. 
+ * If the buffer isn't big enough to hold the content, truncation will happen. 
+ * Returns the number of bytes (including the terminating null-byte), that was 
+ * or would've been required to copy the entire content, or 0 on error.
+ */
+size_t libcatner_get_content(xmlNodePtr node, char *buf, size_t len)
+{
+	// Return empty buffer if node is NULL 
+	if (node == NULL)
+	{
+		buf[0] = '\0';
+		return 0;
+	}
+
+	// Fetch the content string
+	xmlChar *content = xmlNodeGetContent(node);
+	
+	// Return empty buffer if node has no content
+	if (content == NULL)
+	{
+		buf[0] = '\0';
+		return 0;
+	}
+
+	// Figure out the length of the string (add one for 0-terminator)
+	int content_len = xmlStrlen(content) + 1;
+
+	// Figure out the max length we can copy
+	size_t copy_len = content_len > len ? len : content_len;
+
+	// Copy everything over (that fits in the buffer)
+	strncpy(buf, (char *) content, copy_len);
+
+	// Make sure the buffer is 0-terminated
+	buf[copy_len - 1] = '\0';
+
+	// Free the content string we received from libxml
+	xmlFree(content);
+
+	// Return the buffer size that was needed to copy everything (including 
+	// the terminating null-byte) which might be less than what was used in 
+	// case the provided buffer wasn't sufficient
+	return content_len;
+}
+
+size_t catner_get_locale(catner_state_s *cs, char *buf, size_t len)
+{
+	xmlNodePtr locale = libcatner_get_child(cs->catalog, BMECAT_NODE_LOCALE, NULL, 0);
+	return libcatner_get_content(locale, buf, len);
+}
+
+/*
  * Set the LOCALE to the given value, overwriting the existing value if any.
  * If the node didn't exist yet, it will be created.
  * Returns 0 on success, -1 on error.
@@ -1178,6 +1230,12 @@ int main(int argc, char **argv)
 	catner_add_article_feature_variant(cs, "SRTS63", "f_laenge", "02", "1500");
 
 	catner_print_xml(cs);
+
+	/*
+	char locale[3];
+        size_t len = catner_get_locale(cs, locale, 3);
+	fprintf(stderr, "LOCALE = %s (%zu)\n", locale, len);
+	*/
 
 	/*
 	catner_write_xml(cs, "/home/julien/workspace/catner/xml/test.xml");
