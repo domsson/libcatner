@@ -51,27 +51,6 @@ struct catner_state
 };
 
 /*
- * Getting element content
- */
-
-size_t catner_get_locale(catner_state_s *cs, char *buf, size_t len);
-size_t catner_get_generator(catner_state_s *cs, char *buf, size_t len);
-
-size_t catner_get_article_aid(catner_state_s *cs, char *buf, size_t len);
-size_t catner_get_article_title(catner_state_s *cs, const char *aid, char *buf, size_t len);
-size_t catner_get_article_descr(catner_state_s *cs, const char *aid, char *buf, size_t len);
-
-/*
- * Setting element content
- */
-
-int catner_set_locale(catner_state_s *cs, const char *value);
-int catner_set_generator(catner_state_s *cs, const char *value);
-
-int catner_set_article_title(catner_state_s *cs, const char *aid, const char *value);
-int catner_set_article_descr(catner_state_s *cs, const char *aid, const char *value);
-
-/*
  * Adding elements
  */
 
@@ -84,6 +63,33 @@ int catner_add_article_image(catner_state_s *cs, const char *aid, const char *mi
 int catner_add_article_category(catner_state_s *cs, const char *aid, const char *value);
 int catner_add_article_feature(catner_state_s *cs, const char *aid, const char *fid, const char *name, const char *descr, const char *unit, const char *value);
 int catner_add_article_feature_variant(catner_state_s *cs, const char *aid, const char *fid, const char *vid, const char *value);
+
+/*
+ * Setting element content
+ */
+
+int catner_set_locale(catner_state_s *cs, const char *value);
+int catner_set_generator(catner_state_s *cs, const char *value);
+
+int catner_set_article_id(catner_state_s *cs, const char *aid, const char *value);
+int catner_set_article_title(catner_state_s *cs, const char *aid, const char *value);
+int catner_set_article_descr(catner_state_s *cs, const char *aid, const char *value);
+int catner_set_article_feature_id(catner_state_s *cs, const char *aid, const char *fid, const char *value);
+int catner_set_article_feature_name(catner_state_s *cs, const char *aid, const char *fid, const char *value);
+int catner_set_article_feature_descr(catner_state_s *cs, const char *aid, const char *fid, const char *value);
+int catner_set_article_feature_value(catner_state_s *cs, const char *aid, const char *fid, const char *value);
+int catner_set_article_feature_unit(catner_state_s *cs, const char *aid, const char *fid, const char *value);
+
+/*
+ * Getting element content
+ */
+
+size_t catner_get_locale(catner_state_s *cs, char *buf, size_t len);
+size_t catner_get_generator(catner_state_s *cs, char *buf, size_t len);
+
+size_t catner_get_article_aid(catner_state_s *cs, char *buf, size_t len);
+size_t catner_get_article_title(catner_state_s *cs, const char *aid, char *buf, size_t len);
+size_t catner_get_article_descr(catner_state_s *cs, const char *aid, char *buf, size_t len);
 
 /*
  * Deleting elements
