@@ -466,7 +466,44 @@ void catner_del_article(catner_state_s *cs, const char *aid)
 	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
 		cs->_curr_article;
 
+	// Are we about to delete the currently selected article?
+	if (cs->_curr_article == article)
+	{
+		cs->_curr_article = NULL;
+		cs->_curr_feature = NULL;
+		cs->_curr_variant = NULL;
+		cs->_curr_image   = NULL;
+	}
+
 	libcatner_del_node(article);
+}
+
+void catner_del_article_image(catner_state_s *cs, const char *aid, const char *path)
+{
+	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
+		cs->_curr_article;
+
+	if (article == NULL)
+	{
+		return;
+	}
+
+	xmlNodePtr images = libcatner_get_child(article, BMECAT_NODE_ARTICLE_IMAGES, NULL, 0);
+
+	if (images == NULL)
+	{
+		return;
+	}
+
+	xmlNodePtr image = libcatner_get_child(images, BMECAT_NODE_ARTICLE_IMAGE_PATH, BAD_CAST path, 0);
+
+	// Are we about to delete the currently selected image?
+	if (cs->_curr_image == image)
+	{
+		cs->_curr_image = NULL;
+	}
+
+	libcatner_del_node(image);
 }
 
 void catner_del_article_feature(catner_state_s *cs, const char *aid, 
@@ -482,6 +519,13 @@ void catner_del_article_feature(catner_state_s *cs, const char *aid,
 
 	xmlNodePtr feature = fid ? libcatner_get_feature(article, BAD_CAST fid) :
 		cs->_curr_feature;
+
+	// Are we about to delete the currently selected feature?
+	if (cs->_curr_feature == feature)
+	{
+		cs->_curr_feature = NULL;
+		cs->_curr_variant = NULL;
+	}
 
 	libcatner_del_node(feature);
 }
@@ -507,6 +551,12 @@ void catner_del_article_feature_variant(catner_state_s *cs, const char *aid,
 
 	xmlNodePtr variant = vid ? libcatner_get_variant(feature, BAD_CAST vid) : 
 		cs->_curr_variant;
+
+	// Are we about to delete the currently selected variant?
+	if (cs->_curr_variant == variant)
+	{
+		cs->_curr_variant = NULL;
+	}
 
 	libcatner_del_node(variant);
 }
@@ -712,11 +762,14 @@ int catner_add_article_image(catner_state_s *cs, const char *aid, const char *mi
 }
 
 /*
- * TODO contract/workings of this function: should we automatically set the
- *      main unit if there wasn't one? shouldn't we strictly adhere to the 
- *      user's request? Also, it doesn't technically make much sense to have 
- *      a main unit that has a factor other than "1" ("1.0", "1.00", ...),
- *      so should we check for that? etc etc etc
+ * Adds a new alternative unit to the given article. If the article didn't have 
+ * a main unit set before, this unit will also be set as such. If the unit code 
+ * or factor aren't given, sensible defaults ("PCE" and "1") will be used. When 
+ * `main` is `1`, the current main unit (if any) will be updated with this one.
+ *
+ * TODO - it doesn't technically make much sense to have a main unit that has 
+ *        a factor other than "1" ("1.0", "1.00", ...), let's handle that
+ *      - we should consider taking the factor as a double, then converting it
  */
 int catner_add_article_unit(catner_state_s *cs, const char *aid, 
 		const char *code, const char *factor, int main)
@@ -730,7 +783,8 @@ int catner_add_article_unit(catner_state_s *cs, const char *aid,
 	}
 
 	// Construct unit factor string based on user input and default value
-	const char *f = factor ? factor : CATNER_DEF_UNIT_FACTOR;
+	const char *c = code   ? code   : LIBCATNER_DEF_UNIT_CODE;
+	const char *f = factor ? factor : LIBCATNER_DEF_UNIT_FACTOR;
 
 	// Find the ARTICLE_ORDER_DETAILS node, which holds all units
 	xmlNodePtr details = libcatner_get_child(article, BMECAT_NODE_ARTICLE_UNITS, NULL, 1);
@@ -747,7 +801,7 @@ int catner_add_article_unit(catner_state_s *cs, const char *aid,
 		}
 		
 		// Check if this ALTERNATIVE_UNIT has the unit code we're looking for
-		if (libcatner_get_child(child, BMECAT_NODE_ARTICLE_UNIT_CODE, BAD_CAST code, 0))
+		if (libcatner_get_child(child, BMECAT_NODE_ARTICLE_UNIT_CODE, BAD_CAST c, 0))
 		{
 			// If so, remember this node and stop iterating
 			alt_unit = child;
@@ -760,20 +814,20 @@ int catner_add_article_unit(catner_state_s *cs, const char *aid,
 	// No ORDER_UNIT (main unit) present yet, let's add it
 	if (main_unit == NULL)
 	{
-		main_unit = xmlNewTextChild(details, NULL, BMECAT_NODE_ARTICLE_UNIT, BAD_CAST code);
+		main_unit = xmlNewTextChild(details, NULL, BMECAT_NODE_ARTICLE_UNIT, BAD_CAST c);
 	}
 
-	// ORDER_UNIT already present, let's update it if so requested 
-	if (main)
+	// ORDER_UNIT (main unit) present; let's update the main unit, if so requested 
+	else if (main)
 	{
-		xmlNodeSetContent(main_unit, BAD_CAST code);
+		xmlNodeSetContent(main_unit, BAD_CAST c);
 	}
 
 	// ALTERNATIVE_UNIT node wasn't present for this unit code, we'll add it now
 	if (alt_unit == NULL)
 	{
 		alt_unit = xmlNewChild(details, NULL, BMECAT_NODE_ARTICLE_ALT_UNIT, NULL);
-		xmlNewTextChild(alt_unit, NULL, BMECAT_NODE_ARTICLE_UNIT_CODE, BAD_CAST code);
+		xmlNewTextChild(alt_unit, NULL, BMECAT_NODE_ARTICLE_UNIT_CODE,   BAD_CAST c);
 		xmlNewTextChild(alt_unit, NULL, BMECAT_NODE_ARTICLE_UNIT_FACTOR, BAD_CAST f);
 	}
 	
@@ -902,7 +956,7 @@ int catner_add_article_feature(catner_state_s *cs, const char *aid, const char *
 	snprintf(o, 8, "%zu", num_features + 1);
 
 	const char *d = descr ? descr : name;
-	const char *u = unit  ? unit  : CATNER_DEF_FEATURE_UNIT;
+	const char *u = unit  ? unit  : LIBCATNER_DEF_FEATURE_UNIT;
 
 	// Find or create ARTICLE_FEATURES node
 	xmlNodePtr features = libcatner_get_child(article, BMECAT_NODE_FEATURES, NULL, 1);
@@ -993,6 +1047,7 @@ int catner_sel_first_article(catner_state_s *cs)
 		// We also have to reset feature and variant selection
 		cs->_curr_feature = NULL;
 		cs->_curr_variant = NULL;
+		cs->_curr_image   = NULL;
 	}
 
 	return (cs->_curr_article != NULL);
@@ -1018,6 +1073,7 @@ int catner_sel_next_article(catner_state_s *cs)
 	// Change of article means we've got to reset selected feature and variant
 	cs->_curr_feature = NULL;
 	cs->_curr_variant = NULL;
+	cs->_curr_image   = NULL;
 
 	// Return 1 if we got something, otherwise 0
 	return (cs->_curr_article != NULL);
@@ -1132,7 +1188,7 @@ int catner_sel_next_variant(catner_state_s *cs)
  */
 int catner_write_xml(catner_state_s *cs, const char *path)
 {
-	return xmlSaveFormatFileEnc(path, cs->doc, CATNER_XML_ENCODING, 1);
+	return xmlSaveFormatFileEnc(path, cs->doc, LIBCATNER_XML_ENCODING, 1);
 }
 
 /*
@@ -1140,7 +1196,7 @@ int catner_write_xml(catner_state_s *cs, const char *path)
  */
 int catner_print_xml(catner_state_s *cs)
 {
-	return xmlSaveFormatFileEnc(CATNER_STDOUT_FILE, cs->doc, CATNER_XML_ENCODING, 1);
+	return xmlSaveFormatFileEnc(LIBCATNER_STDOUT_FILE, cs->doc, LIBCATNER_XML_ENCODING, 1);
 }
 
 /*
@@ -1165,7 +1221,7 @@ catner_state_s *catner_init()
 	catner_state_s empty_state = { 0 };
 	*state = empty_state;
 
-	state->doc       = xmlNewDoc(BAD_CAST CATNER_XML_VERSION);
+	state->doc       = xmlNewDoc(BAD_CAST LIBCATNER_XML_VERSION);
 	state->root      = libcatner_get_root(state->doc, 1);
 	state->header    = libcatner_get_header(state->root, 1);
 	state->articles  = libcatner_get_articles(state->root, 1);
@@ -1240,7 +1296,7 @@ int main(int argc, char **argv)
 
 	catner_state_s *cs = catner_init();
 	catner_set_generator(cs, "BAD GENERATOR"); // This should not show up
-	catner_set_generator(cs, CATNER_NAME);
+	catner_set_generator(cs, LIBCATNER_NAME);
 	catner_set_locale(cs, "DE"); // This should not show up
 	catner_set_locale(cs, "EN");
 	catner_add_territory(cs, "DE");

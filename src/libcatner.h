@@ -2,23 +2,28 @@
 #define LIBCATNER_H
 
 // Name & version
-#define CATNER_NAME "catner"
-#define CATNER_VER_MAJOR 0
-#define CATNER_VER_MINOR 1
-#define CATNER_VER_PATCH 0
+#define LIBCATNER_NAME "catner"
+#define LIBCATNER_VER_MAJOR 0
+#define LIBCATNER_VER_MINOR 1
+#define LIBCATNER_VER_PATCH 0
 
 // XML file settings
-#define CATNER_XML_VERSION  "1.0"
-#define CATNER_XML_ENCODING "utf-8"
+#define LIBCATNER_XML_VERSION  "1.0"
+#define LIBCATNER_XML_ENCODING "utf-8"
 
 // Default values for various BMEcat entries
-#define CATNER_DEF_IMAGE_MIME   "image/jpg"
-#define CATNER_DEF_UNIT_CODE    "PCE"
-#define CATNER_DEF_UNIT_FACTOR  "1"
-#define CATNER_DEF_FEATURE_UNIT "00"
+#define LIBCATNER_DEF_IMAGE_MIME   "image/jpg"
+#define LIBCATNER_DEF_UNIT_CODE    "PCE"
+#define LIBCATNER_DEF_UNIT_FACTOR  "1"
+#define LIBCATNER_DEF_FEATURE_UNIT "00"
 
 // Misc
-#define CATNER_STDOUT_FILE "-"
+#define LIBCATNER_STDOUT_FILE "-"
+
+// Errors
+#define LIBCATNER_ERR_NO_SEL_ARTICLE  1
+#define LIBCATNER_ERR_NO_SEL_FEATURE  2
+#define LIBCATNER_ERR_NO_SEL_VARIANT  3
 
 /*
  * Data structures
@@ -30,7 +35,7 @@ typedef struct catner_state catner_state_s;
 
 struct catner_state
 {
-	char *path;		// Path to XML file, if document was loaded from one
+	char *path;		// Path to XML file, if doc was loaded from one
 	
 	xmlDocPtr  doc;		// XML document pointer
 	xmlNodePtr root;	// Pointer to BMECAT node
@@ -40,8 +45,9 @@ struct catner_state
 	xmlNodePtr articles;	// Pointer to T_NEW_CATALOG node
 
 	xmlNodePtr _curr_article;	// For iterating purposes
-	xmlNodePtr _curr_feature;	// For iterating purposes
-	xmlNodePtr _curr_variant;	// For iterating purposes
+	xmlNodePtr _curr_feature;	// ...
+	xmlNodePtr _curr_variant;
+	xmlNodePtr _curr_image;
 };
 
 /*
@@ -87,6 +93,7 @@ void catner_del_generator(catner_state_s *cs);
 void catner_del_territory(catner_state_s *cs, const char *value);
 
 void catner_del_article(catner_state_s *cs, const char *aid);
+void catner_del_article_image(catner_state_s *cs, const char *aid, const char *path);
 void catner_del_article_feature(catner_state_s *cs, const char *aid, const char *fid);
 void catner_del_article_feature_variant(catner_state_s *cs, const char *aid, const char *fid, const char *vid);
 
@@ -99,16 +106,18 @@ size_t catner_num_article_features(catner_state_s *cs, const char *aid);
 size_t catner_num_article_feature_variants(catner_state_s *cs, const char *aid, const char *fid);
 
 /*
- * Selecting elements for iteration
+ * Selecting active elements
  */
 
 int catner_sel_first_article(catner_state_s *cs);
 int catner_sel_first_feature(catner_state_s *cs);
 int catner_sel_first_variant(catner_state_s *cs);
+// int catner_sel_first_image(catner_state_s *cs);
 
 int catner_sel_next_article(catner_state_s *cs);
 int catner_sel_next_feature(catner_state_s *cs);
 int catner_sel_next_variant(catner_state_s *cs);
+// int catner_sel_next_image(catner_state_s *cs);
 
 /*
  * Output
