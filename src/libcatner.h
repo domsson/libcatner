@@ -48,6 +48,7 @@ struct catner_state
 	xmlNodePtr _curr_feature;	// ...
 	xmlNodePtr _curr_variant;
 	xmlNodePtr _curr_image;
+	xmlNodePtr _curr_unit;
 };
 
 /*
@@ -119,11 +120,13 @@ int catner_sel_first_article(catner_state_s *cs);
 int catner_sel_first_feature(catner_state_s *cs);
 int catner_sel_first_variant(catner_state_s *cs);
 // int catner_sel_first_image(catner_state_s *cs);
+// int catner_sel_first_unit(catner_state_s *cs);
 
 int catner_sel_next_article(catner_state_s *cs);
 int catner_sel_next_feature(catner_state_s *cs);
 int catner_sel_next_variant(catner_state_s *cs);
 // int catner_sel_next_image(catner_state_s *cs);
+// int catner_sel_next_unit(catner_state_s *cs);
 
 /*
  * Output

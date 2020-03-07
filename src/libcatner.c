@@ -892,7 +892,6 @@ int catner_set_feature_prop(catner_state_s *cs, const char *aid, const char *fid
 	}
 
 	return libcatner_set_child(feature, BAD_CAST prop, BAD_CAST value);
-
 }
 
 int catner_set_article_feature_id(catner_state_s *cs, const char *aid, const char *fid, const char *value)
