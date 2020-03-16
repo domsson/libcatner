@@ -25,7 +25,7 @@ static inline xmlNodePtr libcatner_add_child(const xmlNodePtr parent, const xmlC
  * If `create` is `1`, the child node will be created if it wasn't found.
  */
 xmlNodePtr libcatner_get_child(const xmlNodePtr parent, const xmlChar *name, 
-		const xmlChar *value, int create)
+		const xmlChar *value, int add)
 {
 	// Iterate all child nodes of parent
 	xmlNodePtr child = NULL;
@@ -51,7 +51,7 @@ xmlNodePtr libcatner_get_child(const xmlNodePtr parent, const xmlChar *name,
 	}
 
 	// No matching node found - either create it or return NULL
-	return create ? libcatner_add_child(parent, name, value) : NULL;
+	return add ? libcatner_add_child(parent, name, value) : NULL;
 }
 
 /*
@@ -782,7 +782,13 @@ int catner_set_locale(catner_state_s *cs, const char *value)
 		return -1;
 	}
 
-	return libcatner_set_child(cs->catalog, BMECAT_NODE_LOCALE, BAD_CAST value);
+	if (libcatner_set_child(cs->catalog, BMECAT_NODE_LOCALE, BAD_CAST value) == 0)
+	{
+		return 0;
+	}
+	
+	libcatner_add_child(cs->catalog, BMECAT_NODE_LOCALE, BAD_CAST value);
+	return 0;
 }
 
 /*
@@ -932,6 +938,10 @@ int catner_set_article_feature_unit(catner_state_s *cs, const char *aid, const c
 size_t catner_get_locale(catner_state_s *cs, char *buf, size_t len)
 {
 	xmlNodePtr locale = libcatner_get_child(cs->catalog, BMECAT_NODE_LOCALE, NULL, 0);
+	if (locale == NULL)
+	{
+		fprintf(stderr, "LOCALE NULL!?!?!?!\n");
+	}
 	return libcatner_cpy_content(locale, buf, len);
 }
 
@@ -979,6 +989,105 @@ size_t catner_get_article_descr(catner_state_s *cs, const char *aid, char *buf, 
 	return libcatner_cpy_content(descr, buf, len);
 }
 
+size_t catner_get_territories(catner_state_s *cs, char *buf, size_t len)
+{
+	buf[0] = '\0';
+
+	// Iterate all territories, concat each to the buffer
+	if (cs->catalog == NULL)
+	{
+		return 0;
+	}
+
+	const char *comma = ",";
+	size_t cur_len = 0;
+	size_t req_len = 0;
+	xmlNodePtr t = libcatner_get_child(cs->catalog, BMECAT_NODE_TERRITORY, NULL, 0);
+
+	for (; t; t = libcatner_next_node(t))
+	{
+		char *t_str = (char *) xmlNodeGetContent(t);
+		size_t t_len = strlen(t_str);
+
+		req_len += (t_len + (cur_len != 0));
+		if ((req_len + 1) > len)
+		{
+			continue;
+		}
+		
+		if (cur_len)
+		{
+			strncat(buf, comma, 1);
+		}
+		
+		strncat(buf, t_str, t_len);
+		cur_len = req_len;
+	}
+
+	buf[cur_len] = '\0';
+	return req_len + 1;
+}
+
+size_t catner_get_article_categories(catner_state_s *cs, const char *aid, char *buf, size_t len)
+{
+	// Make sure buf passes as an empty, 0-terminated string
+	buf[0] = '\0';
+
+	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
+		cs->_curr_article;
+	
+	if (article == NULL)
+	{
+		return 0;
+	}
+
+	// Iterate all categories, concat each to the buffer
+	const char *comma = ",";
+	size_t cur_len = 0;
+	size_t req_len = 0;
+	xmlNodePtr unit = libcatner_get_child(article, BMECAT_NODE_ARTICLE_CATEGORY, NULL, 0);
+
+	for (; unit; unit = libcatner_next_node(unit))
+	{
+		// Get the inner CATALOG_ID node that actually holds the category
+		xmlNodePtr unit_id = libcatner_get_child(unit, BMECAT_NODE_ARTICLE_CATEGORY_ID, NULL, 0);
+		if (unit_id == NULL)
+		{
+			continue;
+		}
+		
+		// Extract the actual category ID string
+		char *unit_id_str = (char *) xmlNodeGetContent(unit_id);
+
+		// Get the length of the current ID (should be 8, but let's check)
+		size_t id_len = strlen(unit_id_str);
+
+		// Update the required buffer lenght (in case it ain't big enough)
+		req_len += (id_len + (cur_len != 0));
+
+		// We're not concating if we'd be exeeding the buffer
+		if ((req_len + 1) > len)
+		{
+			// We'll still continue though in order to sum up the required length
+			continue;
+		}
+		
+		// Maybe add a comma
+		if (cur_len)
+		{
+			strncat(buf, comma, 1);
+		}
+		// Definitely add the category ID
+		strncat(buf, unit_id_str, id_len);
+
+		// Update the number of characters written (not including '\0')
+		cur_len = req_len;
+	}
+	
+	buf[cur_len] = '\0'; // Make sure we're properly terminated
+	return req_len + 1; // Include required length (including '\0')
+}
+
 //
 // DEL
 // 
@@ -1009,6 +1118,31 @@ void catner_del_article(catner_state_s *cs, const char *aid)
 	}
 
 	libcatner_del_node(article);
+}
+
+void catner_del_article_category(catner_state_s *cs, const char *aid, const char *cid)
+{
+	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
+		cs->_curr_article;
+
+	if (article == NULL)
+	{
+		return;
+	}
+
+	xmlNodePtr cat = libcatner_get_child(article, BMECAT_NODE_ARTICLE_CATEGORY, NULL, 0);
+
+	for (; cat; cat = libcatner_next_node(cat))
+	{
+		xmlNodePtr cat_id = libcatner_get_child(cat, BMECAT_NODE_ARTICLE_CATEGORY_ID, BAD_CAST cid, 0);
+		if (cat_id == NULL)
+		{
+			continue;
+		}
+
+		libcatner_del_node(cat);
+		break;
+	}
 }
 
 void catner_del_article_image(catner_state_s *cs, const char *aid, const char *path)
@@ -1101,9 +1235,27 @@ void catner_del_article_feature_variant(catner_state_s *cs, const char *aid,
 // NUM
 //
 
+size_t catner_num_territories(catner_state_s *cs)
+{
+	return libcatner_num_children(cs->catalog, BMECAT_NODE_TERRITORY, NULL);
+}
+
 size_t catner_num_articles(catner_state_s *cs)
 {
 	return libcatner_num_children(cs->articles, BMECAT_NODE_ARTICLE, NULL);
+}
+
+size_t catner_num_article_categories(catner_state_s *cs, const char *aid)
+{
+	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
+		cs->_curr_article;
+
+	if (article == NULL)
+	{
+		return 0;
+	}
+
+	return libcatner_num_children(article, BMECAT_NODE_ARTICLE_CATEGORY, NULL);
 }
 
 size_t catner_num_article_features(catner_state_s *cs, const char *aid)
@@ -1118,7 +1270,6 @@ size_t catner_num_article_features(catner_state_s *cs, const char *aid)
 
 	return libcatner_num_article_features(article);
 }
-
 
 size_t catner_num_article_feature_variants(catner_state_s *cs, const char *aid, const char *fid)
 {
@@ -1279,7 +1430,7 @@ int catner_sel_first_variant(catner_state_s *cs)
 	// Find the first variant
 	cs->_curr_variant = libcatner_get_child(variants, BMECAT_NODE_VARIANT, NULL, 0);
 		
-	// Return 1 we got something, otherwise 0;
+	// Return 1 we got something, otherwise 0
 	return (cs->_curr_variant != NULL);
 }
 
@@ -1294,11 +1445,99 @@ int catner_sel_next_variant(catner_state_s *cs)
 		return 0;
 	}
 
-	// No we'll advance to the next variant
+	// Now we'll advance to the next variant
 	cs->_curr_variant = libcatner_next_node(cs->_curr_variant);
 
 	// Return 1 if we got something, otherwise 0
 	return (cs->_curr_variant != NULL);
+}
+
+/*
+ * TODO documentation
+ */
+int catner_sel_first_image(catner_state_s *cs)
+{
+	// Abort if no article selected
+	if (cs->_curr_article == NULL)
+	{
+		return 0;
+	}
+
+	// Get the MIME_INFO node that contains all images
+	xmlNodePtr images = libcatner_get_child(cs->_curr_article, BMECAT_NODE_ARTICLE_IMAGES, NULL, 0);
+	if (images == NULL)
+	{
+		// The selected article doesn't have any images
+		return 0;
+	}
+
+	// Find the first image
+	cs->_curr_image = libcatner_get_child(images, BMECAT_NODE_ARTICLE_IMAGE, NULL, 0);
+
+	// Return 1 if we got something, otherwise 0
+	return (cs->_curr_image != NULL);
+}
+
+/*
+ * TODO documentation
+ */
+int catner_sel_next_image(catner_state_s *cs)
+{
+	// Abort if not currently any image selected
+	if (cs->_curr_image == NULL)
+	{
+		return 0;
+	}
+
+	// Now we'll advance to the next image
+	cs->_curr_image = libcatner_next_node(cs->_curr_image);
+
+	// Return 1 if we got something, otherwise 0
+	return (cs->_curr_image != NULL);
+}
+
+/*
+ * TODO documentation
+ */
+int catner_sel_first_unit(catner_state_s *cs)
+{
+	// Abort if no article selected
+	if (cs->_curr_article == NULL)
+	{
+		return 0;
+	}
+
+	// Get the ARTICLE_ORDER_DETAILS node that contains all (alternative) units
+	xmlNodePtr units = libcatner_get_child(cs->_curr_article, BMECAT_NODE_ARTICLE_UNITS, NULL, 0);
+	if (units == NULL)
+	{
+		// No units, we're done
+		return 0;
+	}
+
+	// Find the first unit
+	cs->_curr_unit = libcatner_get_child(units, BMECAT_NODE_ARTICLE_ALT_UNIT, NULL, 0);
+	
+	// Return 1 if we got one, 0 if not
+	return (cs->_curr_unit != NULL);
+}
+
+/*
+ * TODO documentation
+ */
+int catner_sel_next_unit(catner_state_s *cs)
+{
+	// Abort if no unit selected
+	if (cs->_curr_unit == NULL)
+	{
+		return 0;
+	}
+
+	// Get the next unit node, if there is one
+	cs->_curr_unit = libcatner_next_node(cs->_curr_unit);
+
+	// Return 1 if there was another node, otherwise 0
+	return (cs->_curr_unit != NULL);
 }
 
 //
@@ -1430,6 +1669,9 @@ int main(int argc, char **argv)
 	catner_add_article_image(cs, "SRTS63", "image/jpg", "images/srts63-1.jpg");
 	catner_add_article_image(cs, "SRTS63", "image/jpg", "images/srts63-2.jpg");
 	catner_add_article_image(cs, "SRTS63", "image/jpg", "images/srts63-2.jpg"); // This should not show up
+	catner_add_article_category(cs, "SRTS62", "10000000");
+	catner_add_article_category(cs, "SRTS62", "99999999");
+	catner_del_article_category(cs, "SRTS62", "99999999"); // This should not show up
 	catner_add_article_category(cs, "SRTS63", "10010000");
 	catner_add_article_category(cs, "SRTS63", "10020000");
 	catner_add_article_category(cs, "SRTS63", "10020000"); // This should not show up
@@ -1447,11 +1689,24 @@ int main(int argc, char **argv)
 
 	catner_print_xml(cs);
 
-	/*
+	size_t len = 0;
+
 	char locale[3];
-        size_t len = catner_get_locale(cs, locale, 3);
+        len = catner_get_locale(cs, locale, 3);
 	fprintf(stderr, "LOCALE = %s (%zu)\n", locale, len);
-	*/
+
+	char cats[18];
+
+	len = catner_get_article_categories(cs, "SRTS63", cats, 18);
+	fprintf(stderr, "CATEGORIES('SRTS63') = %s (%zu)\n", cats, len);
+
+	len = catner_get_article_categories(cs, "SRTS62", cats, 18);
+	fprintf(stderr, "CATEGORIES('SRTS62') = %s (%zu)\n", cats, len);
+
+	char terr[8];
+	
+	len = catner_get_territories(cs, terr, 8);
+	fprintf(stderr, "TERRITORIES = %s (%zu)\n", terr, len);
 
 	/*
 	catner_write_xml(cs, "/home/julien/workspace/catner/xml/test.xml");
