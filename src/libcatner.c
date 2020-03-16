@@ -993,12 +993,6 @@ size_t catner_get_territories(catner_state_s *cs, char *buf, size_t len)
 {
 	buf[0] = '\0';
 
-	// Iterate all territories, concat each to the buffer
-	if (cs->catalog == NULL)
-	{
-		return 0;
-	}
-
 	const char *comma = ",";
 	size_t cur_len = 0;
 	size_t req_len = 0;
