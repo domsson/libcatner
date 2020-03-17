@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <string.h>
-#include <libxml/xmlstring.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include "libcatner.h"
