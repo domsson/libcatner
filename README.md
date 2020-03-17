@@ -1,4 +1,4 @@
-# catner
+# libcatner
 
 - A thin wrapper on top of `libxml2`, to suit a very specific purpose
 - Pretty early work in progress, you might want to check back later

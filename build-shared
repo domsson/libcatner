@@ -1,0 +1,4 @@
+gcc -g -O0 -o obj/libcatner.o -c -Wall -Werror -fPIC src/libcatner.c `xml2-config --cflags --libs`
+gcc -shared obj/libcatner.o -o lib/libcatner.so
+cp src/libcatner.h lib/libcatner.h
+rm obj/libcatner.o
