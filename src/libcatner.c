@@ -752,6 +752,8 @@ int catner_add_feature(catner_state_s *cs, const char *aid, const char *fid,
 
 /*
  * TODO documentation
+ * TODO adding a variant to a feature that already has a FVALUE should 
+ *      either result in an error (-1) OR remove the FVALUE from the feature
  */
 int catner_add_variant(catner_state_s *cs, const char *aid, 
 		const char *fid, const char *vid, const char *value)
