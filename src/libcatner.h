@@ -160,7 +160,7 @@ int catner_del_article(catner_state_s *cs, const char *aid);
 int catner_del_article_category(catner_state_s *cs, const char *aid, const char *cid);
 int catner_del_article_image(catner_state_s *cs, const char *aid, const char *path);
 int catner_del_feature(catner_state_s *cs, const char *aid, const char *fid);
-int catner_del_article_feature_variant(catner_state_s *cs, const char *aid, const char *fid, const char *vid);
+int catner_del_variant(catner_state_s *cs, const char *aid, const char *fid, const char *vid);
 
 /*
  * Counting elements

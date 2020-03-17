@@ -57,12 +57,19 @@ xmlNodePtr libcatner_get_child(const xmlNodePtr parent, const xmlChar *name,
  * Returns 0 on success, -1 if no suitable child node was found.
  */
 int libcatner_set_child(const xmlNodePtr parent, const xmlChar *name, 
-		const xmlChar *value)
+		const xmlChar *value, int add)
 {
 	xmlNodePtr child = libcatner_get_child(parent, name, NULL, 0);
 
 	if (child == NULL)
 	{
+		// No child, but we're supposed to add it
+		if (add)
+		{
+			child = libcatner_add_child(parent, name, value);
+			return 0;
+		}
+		// No child and we're not supposed to add it
 		return -1;
 	}
 
@@ -405,8 +412,7 @@ size_t libcatner_num_variants(xmlNodePtr feature)
 }
 
 /*
- * TODO - return values?
- *      - what if a feature doesn't have an FORDER
+ * TODO documentation
  */
 int libcatner_fix_feature_order(xmlNodePtr article)
 {
@@ -426,10 +432,8 @@ int libcatner_fix_feature_order(xmlNodePtr article)
 	for (size_t i = 1; feature; feature = libcatner_next_node(feature))
 	{
 		snprintf(order, 8, "%zu", i);
-		if (libcatner_set_child(feature, BMECAT_NODE_FEATURE_ORDER, BAD_CAST order) == -1)
-		{
-			libcatner_add_child(feature, BMECAT_NODE_FEATURE_ORDER, BAD_CAST order); 
-		}
+		// Update the node (create it if it didn't exist yet)
+		libcatner_set_child(feature, BMECAT_NODE_FEATURE_ORDER, BAD_CAST order, 1);
 		++i;
 	}
 	
@@ -752,8 +756,6 @@ int catner_add_feature(catner_state_s *cs, const char *aid, const char *fid,
 
 /*
  * TODO documentation
- * TODO adding a variant to a feature that already has a FVALUE should 
- *      either result in an error (-1) OR remove the FVALUE from the feature
  */
 int catner_add_variant(catner_state_s *cs, const char *aid, 
 		const char *fid, const char *vid, const char *value)
@@ -798,6 +800,14 @@ int catner_add_variant(catner_state_s *cs, const char *aid,
 			return -1;
 		}
 	}
+
+	// Features with variants should not have a FVALUE node themselves
+	xmlNodePtr fvalue = libcatner_get_child(feature, BMECAT_NODE_FEATURE_VALUE, NULL, 0);
+	if (fvalue)
+	{
+		// ... so if there is one, we'll remove it
+		libcatner_del_node(fvalue);
+	}
 	
 	// VARIANT does not yet exist, let's create it
 	xmlNodePtr variant = xmlNewChild(variants, NULL, BMECAT_NODE_VARIANT, NULL);
@@ -831,12 +841,7 @@ int catner_set_locale(catner_state_s *cs, const char *value)
 		return -1;
 	}
 
-	if (libcatner_set_child(cs->catalog, BMECAT_NODE_LOCALE, BAD_CAST value) == 0)
-	{
-		return 0;
-	}
-	
-	libcatner_add_child(cs->catalog, BMECAT_NODE_LOCALE, BAD_CAST value);
+	libcatner_set_child(cs->catalog, BMECAT_NODE_LOCALE, BAD_CAST value, 1);
 	return 0;
 }
 
@@ -876,7 +881,7 @@ int catner_set_article_id(catner_state_s *cs, const char *aid, const char *value
 		return -1;
 	}
 
-	return libcatner_set_child(article, BMECAT_NODE_ARTICLE_ID, BAD_CAST value);
+	return libcatner_set_child(article, BMECAT_NODE_ARTICLE_ID, BAD_CAST value, 0);
 }
 
 /*
@@ -932,7 +937,7 @@ int catner_set_article_descr(catner_state_s *cs, const char *aid, const char *va
 }
 
 int catner_set_feature_prop(catner_state_s *cs, const char *aid, const char *fid, 
-		const char *prop, const char *value)
+		const char *prop, const char *value, int add)
 {
 	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) 
 		: cs->_curr_article;
@@ -952,38 +957,39 @@ int catner_set_feature_prop(catner_state_s *cs, const char *aid, const char *fid
 		return -1;
 	}
 
-	return libcatner_set_child(feature, BAD_CAST prop, BAD_CAST value);
+	return libcatner_set_child(feature, BAD_CAST prop, BAD_CAST value, add);
 }
 
 int catner_set_feature_id(catner_state_s *cs, const char *aid, const char *fid, const char *value)
 {
 	const char* prop = (char *) BMECAT_NODE_FEATURE_ID;
-	return catner_set_feature_prop(cs, aid, fid, prop, value);
+	return catner_set_feature_prop(cs, aid, fid, prop, value, 0);
 }
 
 int catner_set_feature_name(catner_state_s *cs, const char *aid, const char *fid, const char *value)
 {
 	const char* prop = (char *) BMECAT_NODE_FEATURE_NAME;
-	return catner_set_feature_prop(cs, aid, fid, prop, value);
+	return catner_set_feature_prop(cs, aid, fid, prop, value, 1);
 }
 
 int catner_set_feature_descr(catner_state_s *cs, const char *aid, const char *fid, const char *value)
 {
 	const char* prop = (char *) BMECAT_NODE_FEATURE_DESCR;
-	return catner_set_feature_prop(cs, aid, fid, prop, value);
+	return catner_set_feature_prop(cs, aid, fid, prop, value, 1);
 }
 
+// TODO there might not be a FVALUE element yet! If so, we have to create it
 int catner_set_feature_value(catner_state_s *cs, const char *aid, const char *fid, const char *value)
 {
 	const char* prop = (char *) BMECAT_NODE_FEATURE_VALUE;
-	return catner_set_feature_prop(cs, aid, fid, prop, value);
+	return catner_set_feature_prop(cs, aid, fid, prop, value, 1);
 }
 
 int catner_set_feature_unit(catner_state_s *cs, const char *aid, const char *fid, const char *value)
 {
 	const char *v = xmlStrlen(BAD_CAST value) ? value : LIBCATNER_DEF_FEATURE_UNIT;
 	const char* prop = (char *) BMECAT_NODE_FEATURE_UNIT;
-	return catner_set_feature_prop(cs, aid, fid, prop, v);
+	return catner_set_feature_prop(cs, aid, fid, prop, v, 1);
 }
 
 int catner_set_variant_value(catner_state_s *cs, const char *aid, const char *fid, const char *vid, const char *value)
@@ -1015,7 +1021,7 @@ int catner_set_variant_value(catner_state_s *cs, const char *aid, const char *fi
 		return -1;
 	}
 
-	return libcatner_set_child(variant, BMECAT_NODE_VARIANT_VALUE, BAD_CAST value);
+	return libcatner_set_child(variant, BMECAT_NODE_VARIANT_VALUE, BAD_CAST value, 0);
 }
 
 //
@@ -1842,8 +1848,7 @@ void catner_free(catner_state_s *cs)
 }
 
 /*
- * TODO this is fine and dandy, but the error code is currently not set
- *      by any function, hence this will always return 0 (no error)
+ * TODO documentation
  */
 int catner_last_error(catner_state_s *cs)
 {
