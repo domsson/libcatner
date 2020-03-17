@@ -1,1 +1,0 @@
-gcc -Wall -o bin/catner src/libcatner.c `xml2-config --cflags --libs`

@@ -1,7 +1,8 @@
 #ifndef LIBCATNER_H
 #define LIBCATNER_H
 
-#include <libxml/xmlstring.h> // BAD_CAST
+#include <libxml/xmlstring.h>
+#include <libxml/tree.h>
 
 // Name & version
 #define LIBCATNER_NAME "catner"

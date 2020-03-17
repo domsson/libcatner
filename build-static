@@ -1,4 +1,4 @@
-gcc -c -o obj/libcatner.o src/libcatner.c `xml2-config --cflags --libs`
+gcc -c -o obj/libcatner.o src/libcatner.c `xml2-config --cflags`
 ar rcs lib/libcatner.a obj/libcatner.o
 cp src/libcatner.h lib/libcatner.h
 rm obj/libcatner.o
