@@ -385,7 +385,7 @@ size_t libcatner_cpy_content(xmlNodePtr node, char *buf, size_t len)
 	return content_len;
 }
 
-size_t libcatner_num_article_features(xmlNodePtr article)
+size_t libcatner_num_features(xmlNodePtr article)
 {
 	xmlNodePtr features = libcatner_get_child(article, BMECAT_NODE_FEATURES, NULL, 0);
 	if (features == NULL)
@@ -396,7 +396,7 @@ size_t libcatner_num_article_features(xmlNodePtr article)
 	return libcatner_num_children(features, BMECAT_NODE_FEATURE, NULL);
 }
 
-size_t libcatner_num_article_feature_variants(xmlNodePtr feature)
+size_t libcatner_num_variants(xmlNodePtr feature)
 {
 	xmlNodePtr variants = libcatner_get_child(feature, BMECAT_NODE_VARIANTS, NULL, 0);
 	if (variants == NULL)
@@ -660,7 +660,7 @@ int catner_add_article_category(catner_state_s *cs, const char *aid, const char 
  * TODO what values are/should be optional? should we use the same value
  *      for name and descr or leave it up to the user?
  */
-int catner_add_article_feature(catner_state_s *cs, const char *aid, const char *fid, 
+int catner_add_feature(catner_state_s *cs, const char *aid, const char *fid, 
 		const char *name, const char *descr, const char *unit, const char *value)
 {
 	// Find the ARTICLE node with the given AID
@@ -683,7 +683,7 @@ int catner_add_article_feature(catner_state_s *cs, const char *aid, const char *
 	}
 
 	// Figure out the number of existing FEATUREs and make it a string
-	size_t num_features = libcatner_num_article_features(article);
+	size_t num_features = libcatner_num_features(article);
 	char o[8];
 	snprintf(o, 8, "%zu", num_features + 1);
 
@@ -710,7 +710,7 @@ int catner_add_article_feature(catner_state_s *cs, const char *aid, const char *
 /*
  * TODO documentation
  */
-int catner_add_article_feature_variant(catner_state_s *cs, const char *aid, 
+int catner_add_variant(catner_state_s *cs, const char *aid, 
 		const char *fid, const char *vid, const char *value)
 {
 	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
@@ -878,6 +878,36 @@ int catner_set_article_descr(catner_state_s *cs, const char *aid, const char *va
 	return 0;
 }
 
+/*
+ * TODO - return values?
+ *      - what if a feature doesn't have an FORDER
+ */
+int libcatner_fix_feature_order(xmlNodePtr article)
+{
+	xmlNodePtr features = libcatner_get_child(article, BMECAT_NODE_FEATURES, NULL, 0);
+
+	if (features == NULL)
+	{
+		return -1;
+	}
+
+	xmlNodePtr feature = libcatner_get_child(features, BMECAT_NODE_FEATURE, NULL, 0);
+	char order[8];
+	order[0] = '\0';
+
+	for (size_t i = 1; feature; feature = libcatner_next_node(feature))
+	{
+		snprintf(order, 8, "%zu", i);
+		if (libcatner_set_child(feature, BMECAT_NODE_FEATURE_ORDER, BAD_CAST order) == -1)
+		{
+			libcatner_add_child(feature, BMECAT_NODE_FEATURE_ORDER, BAD_CAST order); 
+		}
+		++i;
+	}
+	
+	return 0;
+}
+
 int catner_set_feature_prop(catner_state_s *cs, const char *aid, const char *fid, 
 		const char *prop, const char *value)
 {
@@ -894,41 +924,70 @@ int catner_set_feature_prop(catner_state_s *cs, const char *aid, const char *fid
 
 	if (feature == NULL)
 	{
-		return 0;
+		return -1;
 	}
 
 	return libcatner_set_child(feature, BAD_CAST prop, BAD_CAST value);
 }
 
-int catner_set_article_feature_id(catner_state_s *cs, const char *aid, const char *fid, const char *value)
+int catner_set_feature_id(catner_state_s *cs, const char *aid, const char *fid, const char *value)
 {
 	const char* prop = (char *) BMECAT_NODE_FEATURE_ID;
 	return catner_set_feature_prop(cs, aid, fid, prop, value);
 }
 
-int catner_set_article_feature_name(catner_state_s *cs, const char *aid, const char *fid, const char *value)
+int catner_set_feature_name(catner_state_s *cs, const char *aid, const char *fid, const char *value)
 {
 	const char* prop = (char *) BMECAT_NODE_FEATURE_NAME;
 	return catner_set_feature_prop(cs, aid, fid, prop, value);
 }
 
-int catner_set_article_feature_descr(catner_state_s *cs, const char *aid, const char *fid, const char *value)
+int catner_set_feature_descr(catner_state_s *cs, const char *aid, const char *fid, const char *value)
 {
 	const char* prop = (char *) BMECAT_NODE_FEATURE_DESCR;
 	return catner_set_feature_prop(cs, aid, fid, prop, value);
 }
 
-int catner_set_article_feature_value(catner_state_s *cs, const char *aid, const char *fid, const char *value)
+int catner_set_feature_value(catner_state_s *cs, const char *aid, const char *fid, const char *value)
 {
 	const char* prop = (char *) BMECAT_NODE_FEATURE_VALUE;
 	return catner_set_feature_prop(cs, aid, fid, prop, value);
 }
 
-int catner_set_article_feature_unit(catner_state_s *cs, const char *aid, const char *fid, const char *value)
+int catner_set_feature_unit(catner_state_s *cs, const char *aid, const char *fid, const char *value)
 {
 	const char *v = xmlStrlen(BAD_CAST value) ? value : LIBCATNER_DEF_FEATURE_UNIT;
 	const char* prop = (char *) BMECAT_NODE_FEATURE_UNIT;
 	return catner_set_feature_prop(cs, aid, fid, prop, v);
+}
+
+int catner_set_variant_value(catner_state_s *cs, const char *aid, const char *fid, const char *vid, const char *value)
+{
+	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) : 
+		cs->_curr_article;
+
+	if (article == NULL)
+	{
+		return -1;
+	}
+
+	xmlNodePtr feature = fid ? libcatner_get_feature(article, BAD_CAST fid) :
+		cs->_curr_feature;
+
+	if (feature == NULL)
+	{
+		return -1;
+	}
+
+	xmlNodePtr variant = vid ? libcatner_get_variant(feature, BAD_CAST vid) : 
+		cs->_curr_variant;
+
+	if (variant == NULL)
+	{
+		return -1;
+	}
+
+	return libcatner_set_child(variant, BMECAT_NODE_VARIANT_VALUE, BAD_CAST value);
 }
 
 //
@@ -1170,7 +1229,7 @@ void catner_del_article_image(catner_state_s *cs, const char *aid, const char *p
 /*
  * TODO - when a feature is deleted, we need to re-order (FORDER) all others!
  */
-void catner_del_article_feature(catner_state_s *cs, const char *aid, 
+void catner_del_feature(catner_state_s *cs, const char *aid, 
 		const char *fid)
 {
 	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
@@ -1192,9 +1251,10 @@ void catner_del_article_feature(catner_state_s *cs, const char *aid,
 	}
 
 	libcatner_del_node(feature);
+	libcatner_fix_feature_order(article);
 }
 
-void catner_del_article_feature_variant(catner_state_s *cs, const char *aid, 
+void catner_del_variant(catner_state_s *cs, const char *aid, 
 		const char *fid, const char *vid)
 {
 	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
@@ -1252,7 +1312,7 @@ size_t catner_num_article_categories(catner_state_s *cs, const char *aid)
 	return libcatner_num_children(article, BMECAT_NODE_ARTICLE_CATEGORY, NULL);
 }
 
-size_t catner_num_article_features(catner_state_s *cs, const char *aid)
+size_t catner_num_features(catner_state_s *cs, const char *aid)
 {
 	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
 		cs->_curr_article;
@@ -1262,10 +1322,10 @@ size_t catner_num_article_features(catner_state_s *cs, const char *aid)
 		return 0;
 	}
 
-	return libcatner_num_article_features(article);
+	return libcatner_num_features(article);
 }
 
-size_t catner_num_article_feature_variants(catner_state_s *cs, const char *aid, const char *fid)
+size_t catner_num_variants(catner_state_s *cs, const char *aid, const char *fid)
 {
 	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
 		cs->_curr_article;
@@ -1283,7 +1343,7 @@ size_t catner_num_article_feature_variants(catner_state_s *cs, const char *aid, 
 		return 0;
 	}
 
-	return libcatner_num_article_feature_variants(feature);
+	return libcatner_num_variants(feature);
 }
 
 //
@@ -1568,7 +1628,9 @@ int catner_save(catner_state_s *cs)
 }
 
 /*
- * TODO documentation
+ * Creates and returns a `catner_state_s` struct, which holds a reference to 
+ * an XML tree which holds some basic elements required to construct a valid 
+ * kloeckner-style BMEcat XML file.  
  */
 catner_state_s *catner_init()
 {
@@ -1586,7 +1648,14 @@ catner_state_s *catner_init()
 }
 
 /*
- * TODO documentation
+ * Loads the given kloeckner-style BMEcat XML file into memory and returns 
+ * a `catner_state_s` struct that allows reading and manipulating the XML. 
+ *
+ * If `amend` is `1`, required elements that are missing in the file will be
+ * added on import. If an empty document is imported, this will create the 
+ * basic outline of a kloeckner-style BMEcat file, including the BMECAT, 
+ * HEADER, CATALOG and T_NEW_CATALOG nodes. If `amend` is `0` and the imported 
+ * file is missing some of the required elements, this function returns `NULL`.
  */
 catner_state_s *catner_load(const char *path, int amend)
 {
@@ -1645,6 +1714,18 @@ void catner_free(catner_state_s *cs)
 	return;
 }
 
+/*
+ * TODO this is fine and dandy, but the error code is currently not set
+ *      by any function, hence this will always return 0 (no error)
+ */
+int catner_last_error(catner_state_s *cs)
+{
+	return cs->error;
+}
+
+/*
+ * TODO obviously, this needs to disappear from the first release version.
+ */
 int main(int argc, char **argv)
 {
 	LIBXML_TEST_VERSION;
@@ -1672,14 +1753,18 @@ int main(int argc, char **argv)
 	catner_add_article_unit(cs, "SRTS63", "PCE", NULL, 1);
 	catner_add_article_unit(cs, "SRTS63", "PCE", "1", 1);
 	catner_add_article_unit(cs, "SRTS63", "MTR", "6", 1);
-	catner_add_article_feature(cs, "SRTS63", "f_breite", "Breite",   "Breite (mm)", NULL, "Success");
-	catner_add_article_feature(cs, "SRTS63", "f_breite", "Breite 2", "Breite (mm)", NULL, "BAD"); // This should not show up
-	catner_add_article_feature(cs, "SRTS63", "f_laenge", "Laenge",   "Laenge (mm)", NULL, "Success");
-	catner_add_article_feature_variant(cs, "SRTS63", "f_breite", "01", "400");
-	catner_add_article_feature_variant(cs, "SRTS63", "f_breite", "01", "BAD"); // This should not show up
-	catner_add_article_feature_variant(cs, "SRTS63", "f_laenge", "01", "1200");
-	catner_add_article_feature_variant(cs, "SRTS63", "f_breite", "02", "400");
-	catner_add_article_feature_variant(cs, "SRTS63", "f_laenge", "02", "1500");
+	catner_add_feature(cs, "SRTS63", "f_breite", "Breite",   "Breite (mm)", NULL, "Success");
+	catner_add_feature(cs, "SRTS63", "f_breite", "Breite 2", "Breite (mm)", NULL, "BAD"); // This should not show up
+	catner_add_feature(cs, "SRTS63", "f_laenge", "Laenge",   "Laenge (mm)", NULL, "Success");
+	catner_add_feature(cs, "SRTS63", "f_bad",    "BAD",      "BAD VALUE",   NULL, "BAD"); // This should not show up
+	catner_add_feature(cs, "SRTS63", "f_hoehe",  "Hoehe",    "Hoehe (mm)",  NULL, "Success");
+	catner_del_feature(cs, "SRTS63", "f_bad");
+	catner_add_variant(cs, "SRTS63", "f_breite", "01", "400");
+	catner_add_variant(cs, "SRTS63", "f_breite", "01", "BAD"); // This should not show up
+	catner_add_variant(cs, "SRTS63", "f_laenge", "01", "1200");
+	catner_add_variant(cs, "SRTS63", "f_breite", "02", "400");
+	catner_add_variant(cs, "SRTS63", "f_laenge", "02", "1500"); // This should not show up
+	catner_set_variant_value(cs, "SRTS63", "f_laenge", "02", "1600");
 
 	catner_print_xml(cs);
 

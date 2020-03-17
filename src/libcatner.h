@@ -21,9 +21,13 @@
 #define LIBCATNER_STDOUT_FILE "-"
 
 // Errors
-#define LIBCATNER_ERR_NO_SEL_ARTICLE  1
-#define LIBCATNER_ERR_NO_SEL_FEATURE  2
-#define LIBCATNER_ERR_NO_SEL_VARIANT  3
+#define LIBCATNER_ERR_NONE              0
+#define LIBCATNER_ERR_OTHER            -1
+#define LIBCATNER_ERR_NO_SEL_ARTICLE   -2
+#define LIBCATNER_ERR_NO_SEL_FEATURE   -3
+#define LIBCATNER_ERR_NO_SEL_VARIANT   -4
+#define LIBCATNER_ERR_NO_SEL_IMAGE     -5
+#define LIBCATNER_ERR_NO_SEL_UNIT      -6
 
 /*
  * Data structures
@@ -45,6 +49,8 @@ struct catner_state
 	xmlNodePtr _curr_variant;
 	xmlNodePtr _curr_image;
 	xmlNodePtr _curr_unit;
+
+	int error;              // Last error that occured
 };
 
 typedef struct catner_state catner_state_s;
@@ -60,8 +66,8 @@ int catner_add_article(catner_state_s *cs, const char *aid, const char *title, c
 int catner_add_article_unit(catner_state_s *cs, const char *aid, const char *code, const char *factor, int main);
 int catner_add_article_image(catner_state_s *cs, const char *aid, const char *mime, const char *path);
 int catner_add_article_category(catner_state_s *cs, const char *aid, const char *value);
-int catner_add_article_feature(catner_state_s *cs, const char *aid, const char *fid, const char *name, const char *descr, const char *unit, const char *value);
-int catner_add_article_feature_variant(catner_state_s *cs, const char *aid, const char *fid, const char *vid, const char *value);
+int catner_add_feature(catner_state_s *cs, const char *aid, const char *fid, const char *name, const char *descr, const char *unit, const char *value);
+int catner_add_variant(catner_state_s *cs, const char *aid, const char *fid, const char *vid, const char *value);
 
 /*
  * Setting element content
@@ -73,11 +79,12 @@ int catner_set_generator(catner_state_s *cs, const char *value);
 int catner_set_article_id(catner_state_s *cs, const char *aid, const char *value);
 int catner_set_article_title(catner_state_s *cs, const char *aid, const char *value);
 int catner_set_article_descr(catner_state_s *cs, const char *aid, const char *value);
-int catner_set_article_feature_id(catner_state_s *cs, const char *aid, const char *fid, const char *value);
-int catner_set_article_feature_name(catner_state_s *cs, const char *aid, const char *fid, const char *value);
-int catner_set_article_feature_descr(catner_state_s *cs, const char *aid, const char *fid, const char *value);
-int catner_set_article_feature_value(catner_state_s *cs, const char *aid, const char *fid, const char *value);
-int catner_set_article_feature_unit(catner_state_s *cs, const char *aid, const char *fid, const char *value);
+int catner_set_feature_id(catner_state_s *cs, const char *aid, const char *fid, const char *value);
+int catner_set_feature_name(catner_state_s *cs, const char *aid, const char *fid, const char *value);
+int catner_set_feature_descr(catner_state_s *cs, const char *aid, const char *fid, const char *value);
+int catner_set_feature_value(catner_state_s *cs, const char *aid, const char *fid, const char *value);
+int catner_set_feature_unit(catner_state_s *cs, const char *aid, const char *fid, const char *value);
+int catner_set_variant_value(catner_state_s *cs, const char *aid, const char *fid, const char *vid, const char *value);
 
 /*
  * Getting element content
@@ -85,12 +92,11 @@ int catner_set_article_feature_unit(catner_state_s *cs, const char *aid, const c
 
 size_t catner_get_locale(catner_state_s *cs, char *buf, size_t len);
 size_t catner_get_generator(catner_state_s *cs, char *buf, size_t len);
+size_t catner_get_territories(catner_state_s *cs, char *buf, size_t len);
 
 size_t catner_get_article_aid(catner_state_s *cs, char *buf, size_t len);
 size_t catner_get_article_title(catner_state_s *cs, const char *aid, char *buf, size_t len);
 size_t catner_get_article_descr(catner_state_s *cs, const char *aid, char *buf, size_t len);
-
-size_t catner_get_territories(catner_state_s *cs, char *buf, size_t len);
 size_t catner_get_article_categories(catner_state_s *cs, const char *aid, char *buf, size_t len);
 
 /*
@@ -103,7 +109,7 @@ void catner_del_territory(catner_state_s *cs, const char *value);
 void catner_del_article(catner_state_s *cs, const char *aid);
 void catner_del_article_category(catner_state_s *cs, const char *aid, const char *cid);
 void catner_del_article_image(catner_state_s *cs, const char *aid, const char *path);
-void catner_del_article_feature(catner_state_s *cs, const char *aid, const char *fid);
+void catner_del_feature(catner_state_s *cs, const char *aid, const char *fid);
 void catner_del_article_feature_variant(catner_state_s *cs, const char *aid, const char *fid, const char *vid);
 
 /*
@@ -148,9 +154,10 @@ catner_state_s *catner_init();
 catner_state_s *catner_load(const char *path, int amend);
 
 /*
- * Free
+ * Free, Debug, etc
  */
 
 void catner_free(catner_state_s *cs);
+int catner_last_error(catner_state_s *cs);
 
 #endif
