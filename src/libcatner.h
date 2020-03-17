@@ -1,6 +1,8 @@
 #ifndef LIBCATNER_H
 #define LIBCATNER_H
 
+#include <libxml/xmlstring.h> // BAD_CAST
+
 // Name & version
 #define LIBCATNER_NAME "catner"
 #define LIBCATNER_VER_MAJOR 0
@@ -21,13 +23,61 @@
 #define LIBCATNER_STDOUT_FILE "-"
 
 // Errors
-#define LIBCATNER_ERR_NONE              0
-#define LIBCATNER_ERR_OTHER            -1
-#define LIBCATNER_ERR_NO_SEL_ARTICLE   -2
-#define LIBCATNER_ERR_NO_SEL_FEATURE   -3
-#define LIBCATNER_ERR_NO_SEL_VARIANT   -4
-#define LIBCATNER_ERR_NO_SEL_IMAGE     -5
-#define LIBCATNER_ERR_NO_SEL_UNIT      -6
+#define LIBCATNER_ERR_NONE               0
+#define LIBCATNER_ERR_OTHER             -1
+#define LIBCATNER_ERR_OUT_OF_MEMORY     -2
+#define LIBCATNER_ERR_ALREADY_EXISTS    -3
+#define LIBCATNER_ERR_INVALID_VALUE     -4
+#define LIBCATNER_ERR_NO_SUCH_AID      -10
+#define LIBCATNER_ERR_NO_SUCH_FID      -11
+#define LIBCATNER_ERR_NO_SUCH_VID      -12
+#define LIBCATNER_ERR_NO_SUCH_NODE     -13
+#define LIBCATNER_ERR_NO_SEL_ARTICLE   -20
+#define LIBCATNER_ERR_NO_SEL_FEATURE   -21
+#define LIBCATNER_ERR_NO_SEL_VARIANT   -22
+#define LIBCATNER_ERR_NO_SEL_IMAGE     -23
+#define LIBCATNER_ERR_NO_SEL_UNIT      -24
+
+// BMEcat attributes
+#define BMECAT_VERSION   BAD_CAST "2005"
+#define BMECAT_NAMESPACE BAD_CAST "http://www.bmecat.org/bmecat/2005.1"
+
+// BMEcat elements/nodes
+#define BMECAT_NODE_ROOT                BAD_CAST "BMECAT"
+#define BMECAT_NODE_HEADER              BAD_CAST "HEADER"
+#define BMECAT_NODE_CATALOG             BAD_CAST "CATALOG"
+#define BMECAT_NODE_LOCALE              BAD_CAST "LOCALE"
+#define BMECAT_NODE_TERRITORY           BAD_CAST "TERRITORY"
+#define BMECAT_NODE_GENERATOR           BAD_CAST "GENERATOR_INFO"
+#define BMECAT_NODE_ARTICLES            BAD_CAST "T_NEW_CATALOG"
+#define BMECAT_NODE_ARTICLE             BAD_CAST "ARTICLE"
+#define BMECAT_NODE_ARTICLE_ID          BAD_CAST "SUPPLIER_AID"
+#define BMECAT_NODE_ARTICLE_DETAILS     BAD_CAST "ARTICLE_DETAILS"
+#define BMECAT_NODE_ARTICLE_TITLE       BAD_CAST "DESCRIPTION_SHORT"
+#define BMECAT_NODE_ARTICLE_DESCR       BAD_CAST "DESCRIPTION_LONG"
+#define BMECAT_NODE_ARTICLE_UNITS       BAD_CAST "ARTICLE_ORDER_DETAILS"
+#define BMECAT_NODE_ARTICLE_MAIN_UNIT   BAD_CAST "ORDER_UNIT"
+#define BMECAT_NODE_ARTICLE_ALT_UNIT    BAD_CAST "ALTERNATIVE_UNIT"
+#define BMECAT_NODE_ARTICLE_UNIT_CODE   BAD_CAST "ALTERNATIVE_UNIT_CODE"
+#define BMECAT_NODE_ARTICLE_UNIT_FACTOR BAD_CAST "ALTERNATIVE_UNIT_FACTOR"
+#define BMECAT_NODE_ARTICLE_CATEGORY    BAD_CAST "ARTICLE_REFERENCE"
+#define BMECAT_NODE_ARTICLE_CATEGORY_ID BAD_CAST "CATALOG_ID"
+#define BMECAT_NODE_ARTICLE_IMAGES      BAD_CAST "MIME_INFO"
+#define BMECAT_NODE_ARTICLE_IMAGE       BAD_CAST "MIME"
+#define BMECAT_NODE_ARTICLE_IMAGE_MIME  BAD_CAST "MIME_TYPE"
+#define BMECAT_NODE_ARTICLE_IMAGE_PATH  BAD_CAST "MIME_SOURCE"
+#define BMECAT_NODE_FEATURES            BAD_CAST "ARTICLE_FEATURES"
+#define BMECAT_NODE_FEATURE             BAD_CAST "FEATURE"
+#define BMECAT_NODE_FEATURE_ID          BAD_CAST "FID"
+#define BMECAT_NODE_FEATURE_NAME        BAD_CAST "FNAME"
+#define BMECAT_NODE_FEATURE_ORDER       BAD_CAST "FORDER"
+#define BMECAT_NODE_FEATURE_DESCR       BAD_CAST "FDESCR"
+#define BMECAT_NODE_FEATURE_UNIT        BAD_CAST "FUNIT"
+#define BMECAT_NODE_FEATURE_VALUE       BAD_CAST "FVALUE"
+#define BMECAT_NODE_VARIANTS            BAD_CAST "VARIANTS"
+#define BMECAT_NODE_VARIANT             BAD_CAST "VARIANT"
+#define BMECAT_NODE_VARIANT_ID          BAD_CAST "SUPPLIER_AID_SUPPLEMENT"
+#define BMECAT_NODE_VARIANT_VALUE       BAD_CAST "FVALUE"
 
 /*
  * Data structures
@@ -35,6 +85,7 @@
 
 struct catner_state
 {
+	int error;              // Last error that occured
 	char *path;		// Path to XML file, if doc was loaded from one
 	
 	xmlDocPtr  doc;		// XML document pointer
@@ -44,13 +95,11 @@ struct catner_state
 	xmlNodePtr generator;	// Pointer to GENERATOR node
 	xmlNodePtr articles;	// Pointer to T_NEW_CATALOG node
 
-	xmlNodePtr _curr_article;	// For iterating purposes
-	xmlNodePtr _curr_feature;	// ...
-	xmlNodePtr _curr_variant;
-	xmlNodePtr _curr_image;
-	xmlNodePtr _curr_unit;
-
-	int error;              // Last error that occured
+	xmlNodePtr _curr_article;	// Selected article
+	xmlNodePtr _curr_feature;	// Selected features
+	xmlNodePtr _curr_variant;	// Selected variant
+	xmlNodePtr _curr_image;		// Selected article image
+	xmlNodePtr _curr_unit;		// Selected article unit
 };
 
 typedef struct catner_state catner_state_s;
@@ -103,14 +152,14 @@ size_t catner_get_article_categories(catner_state_s *cs, const char *aid, char *
  * Deleting elements
  */
 
-void catner_del_generator(catner_state_s *cs);
-void catner_del_territory(catner_state_s *cs, const char *value);
+int catner_del_generator(catner_state_s *cs);
+int catner_del_territory(catner_state_s *cs, const char *value);
 
-void catner_del_article(catner_state_s *cs, const char *aid);
-void catner_del_article_category(catner_state_s *cs, const char *aid, const char *cid);
-void catner_del_article_image(catner_state_s *cs, const char *aid, const char *path);
-void catner_del_feature(catner_state_s *cs, const char *aid, const char *fid);
-void catner_del_article_feature_variant(catner_state_s *cs, const char *aid, const char *fid, const char *vid);
+int catner_del_article(catner_state_s *cs, const char *aid);
+int catner_del_article_category(catner_state_s *cs, const char *aid, const char *cid);
+int catner_del_article_image(catner_state_s *cs, const char *aid, const char *path);
+int catner_del_feature(catner_state_s *cs, const char *aid, const char *fid);
+int catner_del_article_feature_variant(catner_state_s *cs, const char *aid, const char *fid, const char *vid);
 
 /*
  * Counting elements

@@ -3,7 +3,6 @@
 #include <libxml/xmlstring.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
-#include "libcatner_bmecat.h"
 #include "libcatner.h"
 
 /*
@@ -407,6 +406,38 @@ size_t libcatner_num_variants(xmlNodePtr feature)
 	return libcatner_num_children(variants, BMECAT_NODE_VARIANT, NULL);
 }
 
+/*
+ * TODO - return values?
+ *      - what if a feature doesn't have an FORDER
+ */
+int libcatner_fix_feature_order(xmlNodePtr article)
+{
+	// Find the ARTICLE_FEATUERS node containing all features
+	xmlNodePtr features = libcatner_get_child(article, BMECAT_NODE_FEATURES, NULL, 0);
+
+	// Article has no features yet
+	if (features == NULL)
+	{
+		return -1;
+	}
+
+	xmlNodePtr feature = libcatner_get_child(features, BMECAT_NODE_FEATURE, NULL, 0);
+	char order[8];
+	order[0] = '\0';
+
+	for (size_t i = 1; feature; feature = libcatner_next_node(feature))
+	{
+		snprintf(order, 8, "%zu", i);
+		if (libcatner_set_child(feature, BMECAT_NODE_FEATURE_ORDER, BAD_CAST order) == -1)
+		{
+			libcatner_add_child(feature, BMECAT_NODE_FEATURE_ORDER, BAD_CAST order); 
+		}
+		++i;
+	}
+	
+	return 0;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 //                                                                           //
 //  PUBLIC API                                                               //
@@ -419,7 +450,7 @@ size_t libcatner_num_variants(xmlNodePtr feature)
 
 /*
  * Add the GENERATOR_INFO node and set it to the given `value`.
- * If the node already exists, it will not be changed and 1 is returned.
+ * If the node already exists, it will not be changed and -1 is returned.
  * Otherwise, the node will be created and the function returns 0.
  */
 int catner_add_generator(catner_state_s *cs, const char *value)
@@ -427,7 +458,8 @@ int catner_add_generator(catner_state_s *cs, const char *value)
 	if (cs->generator)
 	{
 		// Already exists
-		return 1;
+		cs->error = LIBCATNER_ERR_ALREADY_EXISTS;
+		return -1;
 	}
 
 	libcatner_add_child(cs->header, BMECAT_NODE_GENERATOR, BAD_CAST value);
@@ -450,17 +482,26 @@ int catner_add_territory(catner_state_s *cs, const char *value)
 	// Valid TERRITORY values should be two uppercase ASCII letters
 	if (xmlStrlen(BAD_CAST value) != 2)
 	{
+		cs->error = LIBCATNER_ERR_INVALID_VALUE;
 		return -1;
 	}
 
 	// Find or create the TERRITORY node with the given value
 	xmlNodePtr t = libcatner_get_child(cs->catalog, BMECAT_NODE_TERRITORY, BAD_CAST value, 1);
-	return t == NULL ? -1 : 0;
+	
+	// Couldn't find nor create the TERRITORY node, no idea why
+	if (t == NULL)
+	{
+		cs->error = LIBCATNER_ERR_OTHER;
+		return -1;
+	}
+	
+	return 0;
 }
 
 /*
  * Add a new article with the given ID (SUPPLIER_AID), title and description.
- * If an article with the given ID already exists, this function returns 1.
+ * If an article with the given ID already exists, this function returns -1.
  * Otherwise, the article will be created and the function returns 0.
  * On error (for example, aid is the empty string), -1 will be returned.
  */
@@ -468,13 +509,15 @@ int catner_add_article(catner_state_s *cs, const char *aid, const char *title, c
 {
 	if (xmlStrlen(BAD_CAST aid) == 0)
 	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_AID;
 		return -1;
 	}
 
 	// Check if an article with the given AID already exists
 	if (libcatner_get_article(cs->articles, BAD_CAST aid) != NULL)
 	{
-		return 1;
+		cs->error = LIBCATNER_ERR_ALREADY_EXISTS;
+		return -1;
 	}
 
 	// Create ARTICLE node with SUPPLIER_AID and ARTICLE_DETAILS child nodes
@@ -506,6 +549,7 @@ int catner_add_article_image(catner_state_s *cs, const char *aid, const char *mi
 
 	if (article == NULL)
 	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_AID;
 		return -1;
 	}
 	
@@ -520,13 +564,14 @@ int catner_add_article_image(catner_state_s *cs, const char *aid, const char *mi
 		if (libcatner_get_child(image, BMECAT_NODE_ARTICLE_IMAGE_PATH, BAD_CAST path, 0))
 		{
 			// If so, this image already exists, we're done
-			return 1;
+			cs->error = LIBCATNER_ERR_ALREADY_EXISTS;
+			return -1;
 		}
 	}
 
 	// No such image present yet, let's create and return it
 	image = xmlNewChild(images, NULL, BMECAT_NODE_ARTICLE_IMAGE, NULL);
-	// TODO use xmlNewChild() or xmlNewTextChild()? Might need to ask kloeckner
+	// TODO use xmlNewChild() or xmlNewTextChild()? 
 	xmlNewTextChild(image, NULL, BMECAT_NODE_ARTICLE_IMAGE_MIME, BAD_CAST mime);
 	xmlNewTextChild(image, NULL, BMECAT_NODE_ARTICLE_IMAGE_PATH, BAD_CAST path);
 
@@ -551,6 +596,7 @@ int catner_add_article_unit(catner_state_s *cs, const char *aid,
 
 	if (article == NULL)
 	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_AID;
 		return -1;
 	}
 
@@ -614,12 +660,9 @@ int catner_add_article_unit(catner_state_s *cs, const char *aid,
 }
 
 /*
- * TODO update return value documentation
- *
- * Adds the given category id to the article with the given `aid` and returns 
- * the associated ARTICLE_REFERENCE node. If there is no article with the given 
- * `aid`, this function returns NULL. If the article already had the cateogry 
- * added, the function simply returns a reference to it.
+ * Adds the given category ID to the article with the ID `aid` and returns 0.
+ * If there is no article with the given `aid` or if the article already has 
+ * the given category associated with it, this function returns -1.
  */
 int catner_add_article_category(catner_state_s *cs, const char *aid, const char *value)
 {
@@ -628,6 +671,7 @@ int catner_add_article_category(catner_state_s *cs, const char *aid, const char 
 
 	if (article == NULL)
 	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_AID;
 		return -1;
 	}
 
@@ -643,7 +687,8 @@ int catner_add_article_category(catner_state_s *cs, const char *aid, const char 
 		if (libcatner_get_child(child, BMECAT_NODE_ARTICLE_CATEGORY_ID, BAD_CAST value, 0))
 		{
 			// Already exists
-			return 1;
+			cs->error = LIBCATNER_ERR_ALREADY_EXISTS;
+			return -1;
 		}
 	}
 
@@ -655,8 +700,6 @@ int catner_add_article_category(catner_state_s *cs, const char *aid, const char 
 }
 
 /*
- * TODO if feature already exists, should we update the feature with 
- *      the given name, desc, unit, value or just return 1 without change?
  * TODO what values are/should be optional? should we use the same value
  *      for name and descr or leave it up to the user?
  */
@@ -670,6 +713,7 @@ int catner_add_feature(catner_state_s *cs, const char *aid, const char *fid,
 	// Article doesn't exist, that's an error
 	if (article == NULL)
 	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_AID;
 		return -1;
 	}
 
@@ -679,7 +723,8 @@ int catner_add_feature(catner_state_s *cs, const char *aid, const char *fid,
 	// Feature already exists, we're done
 	if (feature != NULL)
 	{
-		return 1;
+		cs->error = LIBCATNER_ERR_ALREADY_EXISTS;
+		return -1;
 	}
 
 	// Figure out the number of existing FEATUREs and make it a string
@@ -719,6 +764,7 @@ int catner_add_variant(catner_state_s *cs, const char *aid,
 	// Article doesn't exist, that's an error
 	if (article == NULL)
 	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_AID;
 		return -1;
 	}
 
@@ -728,6 +774,7 @@ int catner_add_variant(catner_state_s *cs, const char *aid,
 	// Feature doesn't exist, that's an error
 	if (feature == NULL)
 	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_FID;
 		return -1;
 	}
 
@@ -747,7 +794,8 @@ int catner_add_variant(catner_state_s *cs, const char *aid,
 		// If this VARIANT has a VID and its content matches vid, we're done
 		if (libcatner_get_child(child, BMECAT_NODE_VARIANT_ID, BAD_CAST vid, 0))
 		{
-			return 1;
+			cs->error = LIBCATNER_ERR_ALREADY_EXISTS;
+			return -1;
 		}
 	}
 	
@@ -779,6 +827,7 @@ int catner_set_locale(catner_state_s *cs, const char *value)
 	// Valid LOCALE values should be two uppercase ASCII letters
 	if (xmlStrlen(BAD_CAST value) != 2)
 	{
+		cs->error = LIBCATNER_ERR_INVALID_VALUE;
 		return -1;
 	}
 
@@ -814,6 +863,7 @@ int catner_set_article_id(catner_state_s *cs, const char *aid, const char *value
 {
 	if (xmlStrlen(BAD_CAST value) == 0)
 	{
+		cs->error = LIBCATNER_ERR_INVALID_VALUE;
 		return -1;
 	}
 
@@ -822,6 +872,7 @@ int catner_set_article_id(catner_state_s *cs, const char *aid, const char *value
 
 	if (article == NULL)
 	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_AID;
 		return -1;
 	}
 
@@ -839,6 +890,7 @@ int catner_set_article_title(catner_state_s *cs, const char *aid, const char *va
 
 	if (article == NULL)
 	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_AID;
 		return -1;
 	}
 
@@ -864,6 +916,7 @@ int catner_set_article_descr(catner_state_s *cs, const char *aid, const char *va
 
 	if (article == NULL)
 	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_AID;
 		return -1;
 	}
 
@@ -878,36 +931,6 @@ int catner_set_article_descr(catner_state_s *cs, const char *aid, const char *va
 	return 0;
 }
 
-/*
- * TODO - return values?
- *      - what if a feature doesn't have an FORDER
- */
-int libcatner_fix_feature_order(xmlNodePtr article)
-{
-	xmlNodePtr features = libcatner_get_child(article, BMECAT_NODE_FEATURES, NULL, 0);
-
-	if (features == NULL)
-	{
-		return -1;
-	}
-
-	xmlNodePtr feature = libcatner_get_child(features, BMECAT_NODE_FEATURE, NULL, 0);
-	char order[8];
-	order[0] = '\0';
-
-	for (size_t i = 1; feature; feature = libcatner_next_node(feature))
-	{
-		snprintf(order, 8, "%zu", i);
-		if (libcatner_set_child(feature, BMECAT_NODE_FEATURE_ORDER, BAD_CAST order) == -1)
-		{
-			libcatner_add_child(feature, BMECAT_NODE_FEATURE_ORDER, BAD_CAST order); 
-		}
-		++i;
-	}
-	
-	return 0;
-}
-
 int catner_set_feature_prop(catner_state_s *cs, const char *aid, const char *fid, 
 		const char *prop, const char *value)
 {
@@ -916,6 +939,7 @@ int catner_set_feature_prop(catner_state_s *cs, const char *aid, const char *fid
 
 	if (article == NULL)
 	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_AID;
 		return -1;
 	}
 
@@ -924,6 +948,7 @@ int catner_set_feature_prop(catner_state_s *cs, const char *aid, const char *fid
 
 	if (feature == NULL)
 	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_FID;
 		return -1;
 	}
 
@@ -968,6 +993,7 @@ int catner_set_variant_value(catner_state_s *cs, const char *aid, const char *fi
 
 	if (article == NULL)
 	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_AID;
 		return -1;
 	}
 
@@ -976,6 +1002,7 @@ int catner_set_variant_value(catner_state_s *cs, const char *aid, const char *fi
 
 	if (feature == NULL)
 	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_FID;
 		return -1;
 	}
 
@@ -984,6 +1011,7 @@ int catner_set_variant_value(catner_state_s *cs, const char *aid, const char *fi
 
 	if (variant == NULL)
 	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_VID;
 		return -1;
 	}
 
@@ -997,10 +1025,6 @@ int catner_set_variant_value(catner_state_s *cs, const char *aid, const char *fi
 size_t catner_get_locale(catner_state_s *cs, char *buf, size_t len)
 {
 	xmlNodePtr locale = libcatner_get_child(cs->catalog, BMECAT_NODE_LOCALE, NULL, 0);
-	if (locale == NULL)
-	{
-		fprintf(stderr, "LOCALE NULL!?!?!?!\n");
-	}
 	return libcatner_cpy_content(locale, buf, len);
 }
 
@@ -1145,21 +1169,35 @@ size_t catner_get_article_categories(catner_state_s *cs, const char *aid, char *
 // DEL
 // 
 
-void catner_del_generator(catner_state_s *cs)
+int catner_del_generator(catner_state_s *cs)
 {
 	libcatner_del_node(cs->generator);
+	return 0;
 }
 
-void catner_del_territory(catner_state_s *cs, const char *value)
+int catner_del_territory(catner_state_s *cs, const char *value)
 {
 	xmlNodePtr territory = libcatner_get_child(cs->catalog, BMECAT_NODE_TERRITORY, BAD_CAST value, 0);
+	if (territory == NULL)
+	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_NODE;
+		return -1;
+	}
+
 	libcatner_del_node(territory);
+	return 0;
 }
 
-void catner_del_article(catner_state_s *cs, const char *aid)
+int catner_del_article(catner_state_s *cs, const char *aid)
 {
 	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
 		cs->_curr_article;
+
+	if (article == NULL)
+	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_AID;
+		return -1;
+	}
 
 	// Are we about to delete the currently selected article?
 	if (cs->_curr_article == article)
@@ -1171,16 +1209,18 @@ void catner_del_article(catner_state_s *cs, const char *aid)
 	}
 
 	libcatner_del_node(article);
+	return 0;
 }
 
-void catner_del_article_category(catner_state_s *cs, const char *aid, const char *cid)
+int catner_del_article_category(catner_state_s *cs, const char *aid, const char *cid)
 {
 	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
 		cs->_curr_article;
 
 	if (article == NULL)
 	{
-		return;
+		cs->error = LIBCATNER_ERR_NO_SUCH_AID;
+		return -1;
 	}
 
 	xmlNodePtr cat = libcatner_get_child(article, BMECAT_NODE_ARTICLE_CATEGORY, NULL, 0);
@@ -1194,25 +1234,29 @@ void catner_del_article_category(catner_state_s *cs, const char *aid, const char
 		}
 
 		libcatner_del_node(cat);
-		break;
+		return 0;
 	}
+	cs->error = LIBCATNER_ERR_NO_SUCH_NODE;
+	return -1;
 }
 
-void catner_del_article_image(catner_state_s *cs, const char *aid, const char *path)
+int catner_del_article_image(catner_state_s *cs, const char *aid, const char *path)
 {
 	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
 		cs->_curr_article;
 
 	if (article == NULL)
 	{
-		return;
+		cs->error = LIBCATNER_ERR_NO_SUCH_AID;
+		return -1;
 	}
 
 	xmlNodePtr images = libcatner_get_child(article, BMECAT_NODE_ARTICLE_IMAGES, NULL, 0);
 
 	if (images == NULL)
 	{
-		return;
+		cs->error = LIBCATNER_ERR_NO_SUCH_NODE;
+		return -1;
 	}
 
 	xmlNodePtr image = libcatner_get_child(images, BMECAT_NODE_ARTICLE_IMAGE_PATH, BAD_CAST path, 0);
@@ -1224,12 +1268,13 @@ void catner_del_article_image(catner_state_s *cs, const char *aid, const char *p
 	}
 
 	libcatner_del_node(image);
+	return 0;
 }
 
 /*
- * TODO - when a feature is deleted, we need to re-order (FORDER) all others!
+ * TODO documentation
  */
-void catner_del_feature(catner_state_s *cs, const char *aid, 
+int catner_del_feature(catner_state_s *cs, const char *aid, 
 		const char *fid)
 {
 	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
@@ -1237,11 +1282,18 @@ void catner_del_feature(catner_state_s *cs, const char *aid,
 
 	if (article == NULL)
 	{
-		return;
+		cs->error = LIBCATNER_ERR_NO_SUCH_AID;
+		return -1;
 	}
 
 	xmlNodePtr feature = fid ? libcatner_get_feature(article, BAD_CAST fid) :
 		cs->_curr_feature;
+
+	if (feature == NULL)
+	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_FID;
+		return -1;
+	}
 
 	// Are we about to delete the currently selected feature?
 	if (cs->_curr_feature == feature)
@@ -1252,9 +1304,10 @@ void catner_del_feature(catner_state_s *cs, const char *aid,
 
 	libcatner_del_node(feature);
 	libcatner_fix_feature_order(article);
+	return 0;
 }
 
-void catner_del_variant(catner_state_s *cs, const char *aid, 
+int catner_del_variant(catner_state_s *cs, const char *aid, 
 		const char *fid, const char *vid)
 {
 	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
@@ -1262,7 +1315,8 @@ void catner_del_variant(catner_state_s *cs, const char *aid,
 
 	if (article == NULL)
 	{
-		return;
+		cs->error = LIBCATNER_ERR_NO_SUCH_AID;
+		return -1;
 	}
 
 	xmlNodePtr feature = fid ? libcatner_get_feature(article, BAD_CAST fid) :
@@ -1270,11 +1324,18 @@ void catner_del_variant(catner_state_s *cs, const char *aid,
 
 	if (feature == NULL)
 	{
-		return;
+		cs->error = LIBCATNER_ERR_NO_SUCH_FID;
+		return -1;
 	}
 
 	xmlNodePtr variant = vid ? libcatner_get_variant(feature, BAD_CAST vid) : 
 		cs->_curr_variant;
+
+	if (variant == NULL)
+	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_VID;
+		return -1;
+	}
 
 	// Are we about to delete the currently selected variant?
 	if (cs->_curr_variant == variant)
@@ -1283,6 +1344,7 @@ void catner_del_variant(catner_state_s *cs, const char *aid,
 	}
 
 	libcatner_del_node(variant);
+	return 0;
 }
 
 //
@@ -1354,7 +1416,7 @@ size_t catner_num_variants(catner_state_s *cs, const char *aid, const char *fid)
  * Set the currently selected article to the first article there is, or NULL 
  * if there is none. If the first article was already selected, this function 
  * does nothing. Otherwise, the current feature and variant selection will be 
- * reset to NULL. Returns 1 if there is now an article selected, otherwise 0.
+ * reset to NULL. Returns 0 if there is now an article selected, otherwise -1.
  */
 int catner_sel_first_article(catner_state_s *cs)
 {
@@ -1371,23 +1433,30 @@ int catner_sel_first_article(catner_state_s *cs)
 		cs->_curr_feature = NULL;
 		cs->_curr_variant = NULL;
 		cs->_curr_image   = NULL;
+		cs->_curr_unit    = NULL;
 	}
 
-	return (cs->_curr_article != NULL);
+	if (cs->_curr_article == NULL)
+	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_NODE;
+		return -1;
+	}
+	return 0;
 }
 
 /*
  * Change the currently selected article to the next one there is, or NULL.
  * If no article was selected, this function will do nothing and return 0.
  * Otherwise, the currently selected feature and variant will be reset, too.
- * Returns 1 if there was another article and it was selected, otherwise 0.
+ * Returns 0 if there was another article and it was selected, otherwise -1.
  */
 int catner_sel_next_article(catner_state_s *cs)
 {
 	// If we have no article currently selected, abort
 	if (cs->_curr_article == NULL)
 	{
-		return 0;
+		cs->error = LIBCATNER_ERR_NO_SEL_ARTICLE;
+		return -1;
 	}
 
 	// Now we'll advance to the next article
@@ -1397,9 +1466,14 @@ int catner_sel_next_article(catner_state_s *cs)
 	cs->_curr_feature = NULL;
 	cs->_curr_variant = NULL;
 	cs->_curr_image   = NULL;
+	cs->_curr_unit    = NULL;
 
-	// Return 1 if we got something, otherwise 0
-	return (cs->_curr_article != NULL);
+	if (cs->_curr_article == NULL)
+	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_NODE;
+		return -1;
+	}
+	return 0;
 }
 
 /*
@@ -1414,7 +1488,8 @@ int catner_sel_first_feature(catner_state_s *cs)
 	// Can't select a feature if no article selected
 	if (cs->_curr_article == NULL)
 	{
-		return 0;
+		cs->error = LIBCATNER_ERR_NO_SEL_ARTICLE;
+		return -1;
 	}
 	
 	// Find the node containing all features 
@@ -1422,12 +1497,14 @@ int catner_sel_first_feature(catner_state_s *cs)
 	if (features == NULL)
 	{
 		// The selected article doesn't have any features
-		return 0;
+		cs->error = LIBCATNER_ERR_NO_SUCH_NODE;
+		return -1;
 	}
 
 	// Find the first feature or NULL if there aren't any
 	xmlNodePtr first = libcatner_get_child(features, BMECAT_NODE_FEATURE, NULL, 0);
 
+	// The selected feature has changed?
 	if (cs->_curr_feature != first)
 	{
 		// Update the feature selection
@@ -1437,8 +1514,12 @@ int catner_sel_first_feature(catner_state_s *cs)
 		cs->_curr_variant = NULL;
 	}
 
-	// Find the first feature for the currently selected article
-	return (cs->_curr_feature != NULL); 
+	if (cs->_curr_feature == NULL)
+	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_NODE;
+		return -1;
+	}
+	return 0;
 }
 
 /*
@@ -1449,7 +1530,8 @@ int catner_sel_next_feature(catner_state_s *cs)
 	// Make sure we currently have a feature selected, otherwise abort
 	if (cs->_curr_feature == NULL)
 	{
-		return 0;
+		cs->error = LIBCATNER_ERR_NO_SEL_FEATURE;
+		return -1;
 	}
 
 	// Now we'll advance to the next feature
@@ -1458,8 +1540,12 @@ int catner_sel_next_feature(catner_state_s *cs)
 	// Change of feature means we've to to reset the selected variant
 	cs->_curr_variant = NULL;
 
-	// Return 1 if we got something, otherwise 0
-	return (cs->_curr_feature != NULL);
+	if (cs->_curr_feature == NULL)
+	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_NODE;
+		return -1;	
+	}
+	return 0;
 }
 
 /*
@@ -1470,7 +1556,8 @@ int catner_sel_first_variant(catner_state_s *cs)
 	// Check if we have a feature selected, otherwise abort
 	if (cs->_curr_feature == NULL)
 	{
-		return 0;
+		cs->error = LIBCATNER_ERR_NO_SEL_FEATURE;
+		return -1;
 	}
 
 	// Find the node containing all variants of this feature
@@ -1478,14 +1565,19 @@ int catner_sel_first_variant(catner_state_s *cs)
 	if (variants == NULL)
 	{
 		// The selected feature doesn't have any variants
-		return 0;
+		cs->error = LIBCATNER_ERR_NO_SUCH_NODE;
+		return -1;
 	}
 
 	// Find the first variant
 	cs->_curr_variant = libcatner_get_child(variants, BMECAT_NODE_VARIANT, NULL, 0);
 		
-	// Return 1 we got something, otherwise 0
-	return (cs->_curr_variant != NULL);
+	if (cs->_curr_variant == NULL)
+	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_NODE;
+		return -1;
+	}
+	return 0;
 }
 
 /*
@@ -1496,14 +1588,19 @@ int catner_sel_next_variant(catner_state_s *cs)
 	// Abort right away if we don't currently have a variant selected
 	if (cs->_curr_variant == NULL)
 	{
-		return 0;
+		cs->error = LIBCATNER_ERR_NO_SEL_VARIANT;
+		return -1;
 	}
 
 	// Now we'll advance to the next variant
 	cs->_curr_variant = libcatner_next_node(cs->_curr_variant);
 
-	// Return 1 if we got something, otherwise 0
-	return (cs->_curr_variant != NULL);
+	if (cs->_curr_variant == NULL)
+	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_NODE;
+		return -1;
+	}
+	return 0;
 }
 
 /*
@@ -1514,7 +1611,8 @@ int catner_sel_first_image(catner_state_s *cs)
 	// Abort if no article selected
 	if (cs->_curr_article == NULL)
 	{
-		return 0;
+		cs->error = LIBCATNER_ERR_NO_SEL_ARTICLE;
+		return -1;
 	}
 
 	// Get the MIME_INFO node that contains all images
@@ -1522,14 +1620,19 @@ int catner_sel_first_image(catner_state_s *cs)
 	if (images == NULL)
 	{
 		// The selected article doesn't have any images
-		return 0;
+		cs->error = LIBCATNER_ERR_NO_SUCH_NODE;
+		return -1;
 	}
 
 	// Find the first image
 	cs->_curr_image = libcatner_get_child(images, BMECAT_NODE_ARTICLE_IMAGE, NULL, 0);
 
-	// Return 1 if we got something, otherwise 0
-	return (cs->_curr_image != NULL);
+	if (cs->_curr_image == NULL)
+	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_NODE;
+		return -1;
+	}
+	return 0;
 }
 
 /*
@@ -1540,14 +1643,19 @@ int catner_sel_next_image(catner_state_s *cs)
 	// Abort if not currently any image selected
 	if (cs->_curr_image == NULL)
 	{
-		return 0;
+		cs->error = LIBCATNER_ERR_NO_SEL_IMAGE;
+		return -1;
 	}
 
 	// Now we'll advance to the next image
 	cs->_curr_image = libcatner_next_node(cs->_curr_image);
 
-	// Return 1 if we got something, otherwise 0
-	return (cs->_curr_image != NULL);
+	if (cs->_curr_image == NULL)
+	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_NODE;
+		return -1;
+	}
+	return 0;
 }
 
 /*
@@ -1558,7 +1666,8 @@ int catner_sel_first_unit(catner_state_s *cs)
 	// Abort if no article selected
 	if (cs->_curr_article == NULL)
 	{
-		return 0;
+		cs->error = LIBCATNER_ERR_NO_SEL_ARTICLE;
+		return -1;
 	}
 
 	// Get the ARTICLE_ORDER_DETAILS node that contains all (alternative) units
@@ -1566,14 +1675,19 @@ int catner_sel_first_unit(catner_state_s *cs)
 	if (units == NULL)
 	{
 		// No units, we're done
-		return 0;
+		cs->error = LIBCATNER_ERR_NO_SUCH_NODE;
+		return -1;
 	}
 
 	// Find the first unit
 	cs->_curr_unit = libcatner_get_child(units, BMECAT_NODE_ARTICLE_ALT_UNIT, NULL, 0);
 	
-	// Return 1 if we got one, 0 if not
-	return (cs->_curr_unit != NULL);
+	if (cs->_curr_unit == NULL)
+	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_NODE;
+		return -1;
+	}
+	return 0;
 }
 
 /*
@@ -1584,18 +1698,23 @@ int catner_sel_next_unit(catner_state_s *cs)
 	// Abort if no unit selected
 	if (cs->_curr_unit == NULL)
 	{
-		return 0;
+		cs->error = LIBCATNER_ERR_NO_SEL_UNIT;
+		return -1;
 	}
 
 	// Get the next unit node, if there is one
 	cs->_curr_unit = libcatner_next_node(cs->_curr_unit);
 
-	// Return 1 if there was another node, otherwise 0
-	return (cs->_curr_unit != NULL);
+	if (cs->_curr_unit == NULL)
+	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_NODE;
+		return -1;
+	}
+	return 0;
 }
 
 //
-// INIT / FREE / INPUT / OUTPUT
+// INIT / FREE / INPUT / OUTPUT / DEBUG
 // 
 
 /*
@@ -1630,11 +1749,15 @@ int catner_save(catner_state_s *cs)
 /*
  * Creates and returns a `catner_state_s` struct, which holds a reference to 
  * an XML tree which holds some basic elements required to construct a valid 
- * kloeckner-style BMEcat XML file.  
+ * kloeckner-style BMEcat XML file. Returns NULL if out of memory. 
  */
 catner_state_s *catner_init()
 {
 	catner_state_s *state = malloc(sizeof(catner_state_s));
+	if (state == NULL)
+	{
+		return NULL;
+	}
 	catner_state_s empty_state = { 0 };
 	*state = empty_state;
 
@@ -1660,6 +1783,10 @@ catner_state_s *catner_init()
 catner_state_s *catner_load(const char *path, int amend)
 {
 	catner_state_s *state = malloc(sizeof(catner_state_s));
+	if (state == NULL)
+	{
+		return NULL;
+	}
 	catner_state_s empty_state = { 0 };
 	*state = empty_state;
 
@@ -1668,7 +1795,7 @@ catner_state_s *catner_load(const char *path, int amend)
 	state->path = strdup(path);
 
 	// Find (or possibly create) the BMECAT node
-	state->root   = libcatner_get_root(state->doc, amend);
+	state->root = libcatner_get_root(state->doc, amend);
 	if (state->root == NULL)
 	{
 		return NULL;
@@ -1720,7 +1847,9 @@ void catner_free(catner_state_s *cs)
  */
 int catner_last_error(catner_state_s *cs)
 {
-	return cs->error;
+	int e = cs->error;
+	cs->error = LIBCATNER_ERR_NONE;
+	return e;
 }
 
 /*
