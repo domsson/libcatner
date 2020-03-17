@@ -9,7 +9,7 @@
 
 ## Build
 
-Oen of these provided scripts should get the job done, accordingly:
+One of these provided scripts should get the job done, accordingly:
 
     ./build-shared
     ./build-static
