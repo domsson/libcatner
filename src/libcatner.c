@@ -16,6 +16,14 @@ static inline xmlNodePtr libcatner_add_child(const xmlNodePtr parent, const xmlC
 		xmlNewTextChild(parent, NULL, name, value);
 }
 
+int libcatner_cmp_content(const xmlNodePtr node, const xmlChar *value)
+{
+	xmlChar *content = xmlNodeGetContent(node);
+	int matches = (xmlStrcmp(content, value) == 0);
+	xmlFree(content);
+	return matches;
+}
+
 /*
  * Searches the parent node for the first child that matches the given `name` 
  * and, if given, text content `value`. Returns the child node found or NULL.
@@ -41,7 +49,7 @@ xmlNodePtr libcatner_get_child(const xmlNodePtr parent, const xmlChar *name,
 		}
 
 		// Node content value given, check if it matches
-		if (xmlStrcmp(xmlNodeGetContent(child), value) == 0)
+		if (libcatner_cmp_content(child, value))
 		{
 			return child;
 		}
@@ -136,7 +144,7 @@ size_t libcatner_num_children(const xmlNodePtr parent, const xmlChar *name,
 		}
 
 		// Node content value given, count if it matches
-		else if (xmlStrcmp(xmlNodeGetContent(child), value) == 0)
+		else if (libcatner_cmp_content(child, value))
 		{
 			++num;
 		}
@@ -1087,6 +1095,7 @@ size_t catner_get_territories(catner_state_s *cs, char *buf, size_t len)
 	size_t req_len = 0;
 	xmlNodePtr t = libcatner_get_child(cs->catalog, BMECAT_NODE_TERRITORY, NULL, 0);
 
+	// TODO xmlFree(t_str)
 	for (; t; t = libcatner_next_node(t))
 	{
 		char *t_str = (char *) xmlNodeGetContent(t);
@@ -1130,6 +1139,7 @@ size_t catner_get_article_categories(catner_state_s *cs, const char *aid, char *
 	size_t req_len = 0;
 	xmlNodePtr unit = libcatner_get_child(article, BMECAT_NODE_ARTICLE_CATEGORY, NULL, 0);
 
+	// TODO xmlFree(unit_id_str)
 	for (; unit; unit = libcatner_next_node(unit))
 	{
 		// Get the inner CATALOG_ID node that actually holds the category
