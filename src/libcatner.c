@@ -763,7 +763,11 @@ int catner_add_feature(catner_state_s *cs, const char *aid, const char *fid,
 }
 
 /*
- * TODO documentation
+ * TODO - documentation
+ *      - I think we should create the required feature if it didn't already
+ *        exist, instead of aborting with an error, because from the user's 
+ *        point of view, it feels unnatural to first have to create a feature 
+ *        before being able to add a variant to an article, I believe...
  */
 int catner_add_variant(catner_state_s *cs, const char *aid, 
 		const char *fid, const char *vid, const char *value)
