@@ -1429,6 +1429,36 @@ size_t catner_num_variants(catner_state_s *cs, const char *aid, const char *fid)
 //
 
 /*
+ * Set the currently selected article to the one identified by the given
+ * `aid`. If the article was found, it will be selected and 0 is returned.
+ * Otherwise, the selected article will not be changed and -1 is returned.
+ */
+int catner_sel_article(catner_state_s *cs, const char *aid)
+{
+	xmlNodePtr article = libcatner_get_article(cs->articles, BAD_CAST aid);
+	if (article == NULL)
+	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_NODE;
+		return -1;
+	}
+	
+	// Check if this is different from the currently selected article
+	if (cs->_curr_article != first)
+	{
+		// If so, update the reference
+		cs->_curr_article = first;
+
+		// We also have to reset feature and variant selection
+		cs->_curr_feature = NULL;
+		cs->_curr_variant = NULL;
+		cs->_curr_image   = NULL;
+		cs->_curr_unit    = NULL;
+	}
+
+	return 0;
+}
+
+/*
  * Set the currently selected article to the first article there is, or NULL 
  * if there is none. If the first article was already selected, this function 
  * does nothing. Otherwise, the current feature and variant selection will be 

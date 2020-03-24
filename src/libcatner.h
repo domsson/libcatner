@@ -176,6 +176,12 @@ size_t catner_num_article_feature_variants(catner_state_s *cs, const char *aid, 
  * Selecting active elements
  */
 
+int catner_sel_article(catner_state_s *cs, const char *aid);
+//int catner_sel_feature(catner_state_s *cs, const char *fid);
+//int catner_sel_variant(catner_state_s *cs, const char *vid);
+//int catner_sel_image(catner_state_s *cs, const char *path);
+//int catner_sel_unit(catner_state_s *cs, const char *unit);
+
 int catner_sel_first_article(catner_state_s *cs);
 int catner_sel_first_feature(catner_state_s *cs);
 int catner_sel_first_variant(catner_state_s *cs);
