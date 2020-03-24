@@ -1443,10 +1443,10 @@ int catner_sel_article(catner_state_s *cs, const char *aid)
 	}
 	
 	// Check if this is different from the currently selected article
-	if (cs->_curr_article != first)
+	if (cs->_curr_article != article)
 	{
 		// If so, update the reference
-		cs->_curr_article = first;
+		cs->_curr_article = article;
 
 		// We also have to reset feature and variant selection
 		cs->_curr_feature = NULL;
