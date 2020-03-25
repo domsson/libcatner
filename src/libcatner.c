@@ -739,9 +739,10 @@ int catner_add_feature(catner_state_s *cs, const char *aid, const char *fid,
 
 	// Figure out the number of existing FEATUREs and make it a string
 	size_t num_features = libcatner_num_features(article);
-	char o[8];
-	snprintf(o, 8, "%zu", num_features + 1);
+	char order[8];
+	snprintf(order, 8, "%zu", num_features + 1);
 
+	/*
 	const char *d = descr ? descr : name;
 	const char *u = unit  ? unit  : LIBCATNER_DEF_FEATURE_UNIT;
 
@@ -753,11 +754,24 @@ int catner_add_feature(catner_state_s *cs, const char *aid, const char *fid,
 	xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_DESCR, BAD_CAST d);
 	xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_UNIT,  BAD_CAST u);
 	xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_ORDER, BAD_CAST o);
+	*/
 
-	if (value != NULL)
-	{
+	xmlNodePtr features = libcatner_get_child(article, BMECAT_NODE_FEATURES, NULL, 1);
+	feature = xmlNewChild(features, NULL, BMECAT_NODE_FEATURE, NULL);
+	xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_ID, BAD_CAST fid);
+	xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_ORDER, BAD_CAST order);
+
+	if (name)
+		xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_NAME,  BAD_CAST name);
+	
+	if (descr)
+		xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_DESCR, BAD_CAST descr);
+	
+	if (unit)
+		xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_UNIT,  BAD_CAST unit);
+	
+	if (value)
 		xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_VALUE, BAD_CAST value);
-	}
 
 	return 0;
 }
@@ -1523,6 +1537,36 @@ int catner_sel_next_article(catner_state_s *cs)
 		cs->error = LIBCATNER_ERR_NO_SUCH_NODE;
 		return -1;
 	}
+	return 0;
+}
+
+int catner_sel_feature(catner_state_s *cs, const char *fid)
+{
+	// Can't select a feature if no article selected
+	if (cs->_curr_article == NULL)
+	{
+		cs->error = LIBCATNER_ERR_NO_SEL_ARTICLE;
+		return -1;
+	}
+
+	xmlNodePtr feature = libcatner_get_feature(cs->_curr_article, BAD_CAST fid);
+
+	if (feature == NULL)
+	{
+		cs->error = LIBCATNER_ERR_NO_SUCH_NODE;
+		return -1;
+	}
+
+	// The selected feature has changed?
+	if (cs->_curr_feature != feature)
+	{
+		// Update the feature selection
+		cs->_curr_feature = feature;
+
+		// Therefore, also reset the current variant selection
+		cs->_curr_variant = NULL;
+	}
+
 	return 0;
 }
 

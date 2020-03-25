@@ -116,6 +116,7 @@ int catner_add_article(catner_state_s *cs, const char *aid, const char *title, c
 int catner_add_article_unit(catner_state_s *cs, const char *aid, const char *code, const char *factor, int main);
 int catner_add_article_image(catner_state_s *cs, const char *aid, const char *mime, const char *path);
 int catner_add_article_category(catner_state_s *cs, const char *aid, const char *value);
+//int catner_add_article_weight(catner_state_s *cs, const char *aid, const char *value);
 int catner_add_feature(catner_state_s *cs, const char *aid, const char *fid, const char *name, const char *descr, const char *unit, const char *value);
 int catner_add_variant(catner_state_s *cs, const char *aid, const char *fid, const char *vid, const char *value);
 
@@ -177,7 +178,7 @@ size_t catner_num_article_feature_variants(catner_state_s *cs, const char *aid, 
  */
 
 int catner_sel_article(catner_state_s *cs, const char *aid);
-//int catner_sel_feature(catner_state_s *cs, const char *fid);
+int catner_sel_feature(catner_state_s *cs, const char *fid);
 //int catner_sel_variant(catner_state_s *cs, const char *vid);
 //int catner_sel_image(catner_state_s *cs, const char *path);
 //int catner_sel_unit(catner_state_s *cs, const char *unit);
