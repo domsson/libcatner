@@ -19,6 +19,7 @@
 #define LIBCATNER_DEF_UNIT_CODE    "PCE"
 #define LIBCATNER_DEF_UNIT_FACTOR  "1"
 #define LIBCATNER_DEF_FEATURE_UNIT "00"
+#define LIBCATNER_FEATURE_WEIGHT   "kloeckner_weight"
 
 // Misc
 #define LIBCATNER_STDOUT_FILE "-"
@@ -116,9 +117,10 @@ int catner_add_article(catner_state_s *cs, const char *aid, const char *title, c
 int catner_add_article_unit(catner_state_s *cs, const char *aid, const char *code, const char *factor, int main);
 int catner_add_article_image(catner_state_s *cs, const char *aid, const char *mime, const char *path);
 int catner_add_article_category(catner_state_s *cs, const char *aid, const char *value);
-//int catner_add_article_weight(catner_state_s *cs, const char *aid, const char *value);
 int catner_add_feature(catner_state_s *cs, const char *aid, const char *fid, const char *name, const char *descr, const char *unit, const char *value);
 int catner_add_variant(catner_state_s *cs, const char *aid, const char *fid, const char *vid, const char *value);
+int catner_add_weight_feature(catner_state_s *cs, const char *aid, const char *value);
+int catner_add_weight_variant(catner_state_s *cs, const char *aid, const char *vid, const char *value);
 
 /*
  * Setting element content

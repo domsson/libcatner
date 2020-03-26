@@ -710,8 +710,7 @@ int catner_add_article_category(catner_state_s *cs, const char *aid, const char 
 }
 
 /*
- * TODO what values are/should be optional? should we use the same value
- *      for name and descr or leave it up to the user?
+ * TODO documentation
  */
 int catner_add_feature(catner_state_s *cs, const char *aid, const char *fid, 
 		const char *name, const char *descr, const char *unit, const char *value)
@@ -742,20 +741,6 @@ int catner_add_feature(catner_state_s *cs, const char *aid, const char *fid,
 	char order[8];
 	snprintf(order, 8, "%zu", num_features + 1);
 
-	/*
-	const char *d = descr ? descr : name;
-	const char *u = unit  ? unit  : LIBCATNER_DEF_FEATURE_UNIT;
-
-	// Find or create ARTICLE_FEATURES node
-	xmlNodePtr features = libcatner_get_child(article, BMECAT_NODE_FEATURES, NULL, 1);
-	feature = xmlNewChild(features, NULL, BMECAT_NODE_FEATURE, NULL);
-	xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_ID,    BAD_CAST fid);
-	xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_NAME,  BAD_CAST name);
-	xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_DESCR, BAD_CAST d);
-	xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_UNIT,  BAD_CAST u);
-	xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_ORDER, BAD_CAST o);
-	*/
-
 	xmlNodePtr features = libcatner_get_child(article, BMECAT_NODE_FEATURES, NULL, 1);
 	feature = xmlNewChild(features, NULL, BMECAT_NODE_FEATURE, NULL);
 	xmlNewTextChild(feature, NULL, BMECAT_NODE_FEATURE_ID, BAD_CAST fid);
@@ -777,11 +762,17 @@ int catner_add_feature(catner_state_s *cs, const char *aid, const char *fid,
 }
 
 /*
+ * TODO - add documentation
+ *      - is it a problem that catner_add_feature() will add the FORDER node?
+ */
+int catner_add_weight_feature(catner_state_s *cs, const char *aid, const char *value)
+{
+	return catner_add_feature(cs, aid, LIBCATNER_FEATURE_WEIGHT, 
+			LIBCATNER_FEATURE_WEIGHT, NULL, NULL, NULL);
+}
+
+/*
  * TODO - documentation
- *      - I think we should create the required feature if it didn't already
- *        exist, instead of aborting with an error, because from the user's 
- *        point of view, it feels unnatural to first have to create a feature 
- *        before being able to add a variant to an article, I believe...
  */
 int catner_add_variant(catner_state_s *cs, const char *aid, 
 		const char *fid, const char *vid, const char *value)
@@ -841,6 +832,11 @@ int catner_add_variant(catner_state_s *cs, const char *aid,
 	xmlNewTextChild(variant, NULL, BMECAT_NODE_VARIANT_VALUE, BAD_CAST value);
 
 	return 0;
+}
+
+int catner_add_weight_variant(catner_state_s *cs, const char *aid, const char *vid, const char *value)
+{
+	return catner_add_variant(cs, aid, LIBCATNER_FEATURE_WEIGHT, vid, value);
 }
 
 //
