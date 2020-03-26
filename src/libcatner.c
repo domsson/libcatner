@@ -1205,6 +1205,39 @@ size_t catner_get_article_categories(catner_state_s *cs, const char *aid, char *
 	return req_len + 1; // Include required length (including '\0')
 }
 
+size_t catner_get_sel_article_id(catner_state_s *cs, char *buf, size_t len)
+{
+	if (cs->_curr_article == NULL)
+	{
+		return libcatner_cpy_content(NULL, buf, len);
+	}
+
+	xmlNodePtr aid = libcatner_get_child(cs->_curr_article, BMECAT_NODE_ARTICLE_ID, NULL, 0);
+	return libcatner_cpy_content(aid, buf, len);
+}
+
+size_t catner_get_sel_feature_id(catner_state_s *cs, char *buf, size_t len)
+{
+	if (cs->_curr_feature == NULL)
+	{
+		return libcatner_cpy_content(NULL, buf, len);
+	}
+
+	xmlNodePtr fid = libcatner_get_child(cs->_curr_feature, BMECAT_NODE_FEATURE_ID, NULL, 0);
+	return libcatner_cpy_content(fid, buf, len);
+}
+
+size_t catner_get_sel_variant_id(catner_state_s *cs, char *buf, size_t len)
+{
+	if (cs->_curr_variant == NULL)
+	{
+		return libcatner_cpy_content(NULL, buf, len);
+	}
+
+	xmlNodePtr vid = libcatner_get_child(cs->_curr_variant, BMECAT_NODE_VARIANT_ID, NULL, 0);
+	return libcatner_cpy_content(vid, buf, len);
+}
+
 //
 // DEL
 // 
