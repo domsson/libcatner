@@ -138,6 +138,7 @@ int catner_set_feature_descr(catner_state_s *cs, const char *aid, const char *fi
 int catner_set_feature_value(catner_state_s *cs, const char *aid, const char *fid, const char *value);
 int catner_set_feature_unit(catner_state_s *cs, const char *aid, const char *fid, const char *value);
 int catner_set_variant_value(catner_state_s *cs, const char *aid, const char *fid, const char *vid, const char *value);
+int catner_set_weight_variant(catner_state_s *cs, const char *aid, const char *vid, const char *value);
 
 /*
  * Getting element content
@@ -164,6 +165,8 @@ int catner_del_article_category(catner_state_s *cs, const char *aid, const char 
 int catner_del_article_image(catner_state_s *cs, const char *aid, const char *path);
 int catner_del_feature(catner_state_s *cs, const char *aid, const char *fid);
 int catner_del_variant(catner_state_s *cs, const char *aid, const char *fid, const char *vid);
+int catner_del_weight_feature(catner_state_s *cs, const char *aid);
+int catner_del_weight_variant(catner_state_s *cs, const char *aid, const char *vid);
 
 /*
  * Counting elements

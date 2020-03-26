@@ -1046,6 +1046,11 @@ int catner_set_variant_value(catner_state_s *cs, const char *aid, const char *fi
 	return libcatner_set_child(variant, BMECAT_NODE_VARIANT_VALUE, BAD_CAST value, 0);
 }
 
+int catner_set_weight_variant(catner_state_s *cs, const char *aid, const char *vid, const char *value)
+{
+	return catner_set_variant_value(cs, aid, LIBCATNER_FEATURE_WEIGHT, vid, value);
+}
+
 //
 // GET
 //
@@ -1199,12 +1204,18 @@ size_t catner_get_article_categories(catner_state_s *cs, const char *aid, char *
 // DEL
 // 
 
+/*
+ * TODO documentation
+ */
 int catner_del_generator(catner_state_s *cs)
 {
 	libcatner_del_node(cs->generator);
 	return 0;
 }
 
+/*
+ * TODO documentation
+ */
 int catner_del_territory(catner_state_s *cs, const char *value)
 {
 	xmlNodePtr territory = libcatner_get_child(cs->catalog, BMECAT_NODE_TERRITORY, BAD_CAST value, 0);
@@ -1218,6 +1229,9 @@ int catner_del_territory(catner_state_s *cs, const char *value)
 	return 0;
 }
 
+/*
+ * TODO documentation
+ */
 int catner_del_article(catner_state_s *cs, const char *aid)
 {
 	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
@@ -1242,6 +1256,9 @@ int catner_del_article(catner_state_s *cs, const char *aid)
 	return 0;
 }
 
+/*
+ * TODO documentation
+ */
 int catner_del_article_category(catner_state_s *cs, const char *aid, const char *cid)
 {
 	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
@@ -1270,6 +1287,9 @@ int catner_del_article_category(catner_state_s *cs, const char *aid, const char 
 	return -1;
 }
 
+/*
+ * TODO documentation
+ */
 int catner_del_article_image(catner_state_s *cs, const char *aid, const char *path)
 {
 	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
@@ -1337,6 +1357,17 @@ int catner_del_feature(catner_state_s *cs, const char *aid,
 	return 0;
 }
 
+/*
+ * TODO documentation
+ */
+int catner_del_weight_feature(catner_state_s *cs, const char *aid)
+{
+	return catner_del_feature(cs, aid, LIBCATNER_FEATURE_WEIGHT);
+}
+
+/*
+ * TODO documentation
+ */
 int catner_del_variant(catner_state_s *cs, const char *aid, 
 		const char *fid, const char *vid)
 {
@@ -1375,6 +1406,14 @@ int catner_del_variant(catner_state_s *cs, const char *aid,
 
 	libcatner_del_node(variant);
 	return 0;
+}
+
+/*
+ * TODO documentation
+ */
+int catner_del_weight_variant(catner_state_s *cs, const char *aid, const char *vid)
+{
+	return catner_del_variant(cs, aid, LIBCATNER_FEATURE_WEIGHT, vid);
 }
 
 //
