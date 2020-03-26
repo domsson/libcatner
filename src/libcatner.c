@@ -1534,6 +1534,26 @@ size_t catner_num_article_images(catner_state_s *cs, const char *aid)
 	return libcatner_num_children(images, BMECAT_NODE_ARTICLE_IMAGE, NULL);
 }
 
+size_t catner_num_article_units(catner_state_s *cs, const char *aid)
+{
+	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
+		cs->_curr_article;
+
+	if (article == NULL)
+	{
+		return 0;
+	}
+
+	xmlNodePtr units = libcatner_get_child(article, BMECAT_NODE_ARTICLE_UNITS, NULL, 0);
+
+	if (units == NULL)
+	{
+		return 0;
+	}
+
+	return libcatner_num_children(units, BMECAT_NODE_ARTICLE_ALT_UNIT, NULL);
+}
+
 size_t catner_num_features(catner_state_s *cs, const char *aid)
 {
 	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
