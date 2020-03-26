@@ -597,6 +597,11 @@ int catner_add_article_image(catner_state_s *cs, const char *aid, const char *mi
  * TODO - it doesn't technically make much sense to have a main unit that has 
  *        a factor other than "1" ("1.0", "1.00", ...), let's handle that
  *      - we should consider taking the factor as a double, then converting it
+ *      - currently, calling this function with a unit CODE that already exists,
+ *        it will override the factor for that unit; instead, it should return 
+ *        -1 and set error to LIBCATNER_ERR_ALREADY_EXISTS; however, before we
+ *        change this, we should write catner_set_article_unit() so that there
+ *        is a way to update an existing unit...
  */
 int catner_add_article_unit(catner_state_s *cs, const char *aid, 
 		const char *code, const char *factor, int main)
