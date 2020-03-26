@@ -188,7 +188,7 @@ int catner_del_weight_variant(catner_state_s *cs, const char *aid, const char *v
 size_t catner_num_territories(catner_state_s *cs);
 size_t catner_num_articles(catner_state_s *cs);
 size_t catner_num_article_categories(catner_state_s *cs, const char *aid);
-//size_t catner_num_article_images(catner_state_s *cs, const char *aid);
+size_t catner_num_article_images(catner_state_s *cs, const char *aid);
 size_t catner_num_features(catner_state_s *cs, const char *aid);
 size_t catner_num_variants(catner_state_s *cs, const char *aid, const char *fid);
 
