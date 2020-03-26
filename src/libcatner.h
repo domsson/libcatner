@@ -161,12 +161,21 @@ int catner_del_generator(catner_state_s *cs);
 int catner_del_territory(catner_state_s *cs, const char *value);
 
 int catner_del_article(catner_state_s *cs, const char *aid);
-int catner_del_article_category(catner_state_s *cs, const char *aid, const char *cid);
 int catner_del_article_image(catner_state_s *cs, const char *aid, const char *path);
+int catner_del_article_category(catner_state_s *cs, const char *aid, const char *cid);
 int catner_del_feature(catner_state_s *cs, const char *aid, const char *fid);
 int catner_del_variant(catner_state_s *cs, const char *aid, const char *fid, const char *vid);
 int catner_del_weight_feature(catner_state_s *cs, const char *aid);
 int catner_del_weight_variant(catner_state_s *cs, const char *aid, const char *vid);
+
+/*
+ * Checking for elements
+ */
+
+//int catner_has_article_title(catner_state_s *cs, const char *aid);
+//int catner_has_article_descr(catner_state_s *cs, const char *aid);
+//int catner_has_article_images(catner_state_s *cs, const char *aid);
+//int catner_has_article_categories(catner_state_s *cs, const char *aid);
 
 /*
  * Counting elements
