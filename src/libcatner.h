@@ -173,15 +173,6 @@ int catner_del_weight_feature(catner_state_s *cs, const char *aid);
 int catner_del_weight_variant(catner_state_s *cs, const char *aid, const char *vid);
 
 /*
- * Checking for elements
- */
-
-//int catner_has_article_title(catner_state_s *cs, const char *aid);
-//int catner_has_article_descr(catner_state_s *cs, const char *aid);
-//int catner_has_article_images(catner_state_s *cs, const char *aid);
-//int catner_has_article_categories(catner_state_s *cs, const char *aid);
-
-/*
  * Counting elements
  */
 
@@ -191,6 +182,15 @@ size_t catner_num_article_categories(catner_state_s *cs, const char *aid);
 size_t catner_num_article_images(catner_state_s *cs, const char *aid);
 size_t catner_num_features(catner_state_s *cs, const char *aid);
 size_t catner_num_variants(catner_state_s *cs, const char *aid, const char *fid);
+
+/*
+ * Checking for elements
+ */
+
+int catner_has_article_title(catner_state_s *cs, const char *aid);
+int catner_has_article_descr(catner_state_s *cs, const char *aid);
+int catner_has_article_images(catner_state_s *cs, const char *aid);
+int catner_has_article_categories(catner_state_s *cs, const char *aid);
 
 /*
  * Selecting active elements

@@ -117,6 +117,39 @@ xmlNodePtr libcatner_next_node(const xmlNodePtr node)
 	return NULL;
 }
 
+int libcatner_has_child(const xmlNodePtr parent, const xmlChar *name, int empty_ok)
+{
+	xmlNodePtr child = libcatner_get_child(parent, name, NULL, 0);
+
+	if (child == NULL)
+	{
+		return 0;
+	}
+
+	// If empty nodes are fine, then we're done
+	if (empty_ok)
+	{
+		return 1;
+	}
+
+	// Otherwise, check the content for being empty / empty string
+	xmlChar *str = xmlNodeGetContent(child);
+
+	if (str == NULL)
+	{
+		// Node is empty
+		return 0;
+	}
+
+	if (xmlStrlen(str) == 0)
+	{
+		// Node only holds an empty string
+		return 0;
+	}
+
+	return 1;
+}
+
 /*
  * Search the parent node for (direct) child nodes with the given name and 
  * return the number of matching nodes found. If value is given (not NULL), 
@@ -1481,7 +1514,7 @@ size_t catner_num_article_categories(catner_state_s *cs, const char *aid)
 	return libcatner_num_children(article, BMECAT_NODE_ARTICLE_CATEGORY, NULL);
 }
 
-size_t catner_num_article_iamges(catner_state_s *cs, const char *aid)
+size_t catner_num_article_images(catner_state_s *cs, const char *aid)
 {
 	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
 		cs->_curr_article;
@@ -1491,7 +1524,14 @@ size_t catner_num_article_iamges(catner_state_s *cs, const char *aid)
 		return 0;
 	}
 
-	return libcatner_num_children(article, BMECAT_NODE_ARTICLE_IMAGES, NULL);
+	xmlNodePtr images = libcatner_get_child(article, BMECAT_NODE_ARTICLE_IMAGES, NULL, 0);
+
+	if (images == NULL)
+	{
+		return 0;
+	}
+
+	return libcatner_num_children(images, BMECAT_NODE_ARTICLE_IMAGE, NULL);
 }
 
 size_t catner_num_features(catner_state_s *cs, const char *aid)
@@ -1526,6 +1566,60 @@ size_t catner_num_variants(catner_state_s *cs, const char *aid, const char *fid)
 	}
 
 	return libcatner_num_variants(feature);
+}
+
+//
+// HAS
+// 
+
+int catner_has_article_title(catner_state_s *cs, const char *aid)
+{
+	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
+		cs->_curr_article;
+
+	if (article == NULL)
+	{
+		return 0;
+	}
+
+	xmlNodePtr details = libcatner_get_child(article, BMECAT_NODE_ARTICLE_DETAILS, NULL, 0);
+	
+	if (details == NULL)
+	{
+		return 0;
+	}
+
+	return libcatner_has_child(details, BMECAT_NODE_ARTICLE_TITLE, 0);
+}
+
+int catner_has_article_descr(catner_state_s *cs, const char *aid)
+{
+	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
+		cs->_curr_article;
+
+	if (article == NULL)
+	{
+		return 0;
+	}
+
+	xmlNodePtr details = libcatner_get_child(article, BMECAT_NODE_ARTICLE_DETAILS, NULL, 0);
+	
+	if (details == NULL)
+	{
+		return 0;
+	}
+
+	return libcatner_has_child(details, BMECAT_NODE_ARTICLE_DESCR, 0);
+}
+
+int catner_has_article_images(catner_state_s *cs, const char *aid)
+{
+	return catner_num_article_images(cs, aid) > 0;
+}
+
+int catner_has_article_categories(catner_state_s *cs, const char *aid)
+{
+	return catner_num_article_categories(cs, aid) > 0;
 }
 
 //
