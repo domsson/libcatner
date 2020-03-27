@@ -16,7 +16,7 @@ static inline xmlNodePtr libcatner_add_child(const xmlNodePtr parent, const xmlC
 		xmlNewTextChild(parent, NULL, name, value);
 }
 
-int libcatner_cmp_content(const xmlNodePtr node, const xmlChar *value)
+static int libcatner_cmp_content(const xmlNodePtr node, const xmlChar *value)
 {
 	xmlChar *content = xmlNodeGetContent(node);
 	int matches = (xmlStrcmp(content, value) == 0);
@@ -29,7 +29,7 @@ int libcatner_cmp_content(const xmlNodePtr node, const xmlChar *value)
  * and, if given, text content `value`. Returns the child node found or NULL.
  * If `create` is `1`, the child node will be created if it wasn't found.
  */
-xmlNodePtr libcatner_get_child(const xmlNodePtr parent, const xmlChar *name, 
+static xmlNodePtr libcatner_get_child(const xmlNodePtr parent, const xmlChar *name, 
 		const xmlChar *value, int add)
 {
 	// Iterate all child nodes of parent
@@ -64,7 +64,7 @@ xmlNodePtr libcatner_get_child(const xmlNodePtr parent, const xmlChar *name,
  * the given value, if such a node can be found, otherwise nothing is done.
  * Returns 0 on success, -1 if no suitable child node was found.
  */
-int libcatner_set_child(const xmlNodePtr parent, const xmlChar *name, 
+static int libcatner_set_child(const xmlNodePtr parent, const xmlChar *name, 
 		const xmlChar *value, int add)
 {
 	xmlNodePtr child = libcatner_get_child(parent, name, NULL, 0);
@@ -104,7 +104,7 @@ static inline int libcatner_del_node(const xmlNodePtr node)
  * Find and return the next sibling node of the same name and return it. 
  * If no further sibling node of the same type exists, NULL is returned.
  */
-xmlNodePtr libcatner_next_node(const xmlNodePtr node)
+static xmlNodePtr libcatner_next_node(const xmlNodePtr node)
 {
 	xmlNodePtr current = NULL;
 	for (current = node->next; current; current = current->next)
@@ -117,7 +117,7 @@ xmlNodePtr libcatner_next_node(const xmlNodePtr node)
 	return NULL;
 }
 
-int libcatner_has_child(const xmlNodePtr parent, const xmlChar *name, int empty_ok)
+static int libcatner_has_child(const xmlNodePtr parent, const xmlChar *name, int empty_ok)
 {
 	xmlNodePtr child = libcatner_get_child(parent, name, NULL, 0);
 
@@ -155,7 +155,7 @@ int libcatner_has_child(const xmlNodePtr parent, const xmlChar *name, int empty_
  * return the number of matching nodes found. If value is given (not NULL), 
  * only child nodes with matching text content will be counted.
  */
-size_t libcatner_num_children(const xmlNodePtr parent, const xmlChar *name, 
+static size_t libcatner_num_children(const xmlNodePtr parent, const xmlChar *name, 
 		const xmlChar *value)
 {
 	size_t num = 0;
@@ -190,7 +190,8 @@ size_t libcatner_num_children(const xmlNodePtr parent, const xmlChar *name,
  * of those (0-based, so `1` would find the second), if there are that many. 
  * Otherwise returns NULL.
  */
-xmlNodePtr libcatner_get_child_at(const xmlNodePtr parent, const xmlChar *name, 
+/*
+static xmlNodePtr libcatner_get_child_at(const xmlNodePtr parent, const xmlChar *name, 
 		size_t n)
 {
 	// We count how many matches we've found (0-based) 
@@ -218,12 +219,13 @@ xmlNodePtr libcatner_get_child_at(const xmlNodePtr parent, const xmlChar *name,
 	// Couldn't find `n` number of matching elements (maybe even none)
 	return NULL;
 }
+*/
 
 /*
  * Add the BMEcat root node to the given document and return it.
  * This function does not check for exisiting root elements.
  */
-xmlNodePtr libcatner_add_root(const xmlDocPtr doc)
+static xmlNodePtr libcatner_add_root(const xmlDocPtr doc)
 {
 	xmlNodePtr root = xmlNewNode(NULL, BMECAT_NODE_ROOT);
 	xmlNewProp(root, BAD_CAST "version", BMECAT_VERSION);
@@ -238,7 +240,7 @@ xmlNodePtr libcatner_add_root(const xmlDocPtr doc)
  * has no root node or the root node doesn't match BMECAT_NODE_ROOT ("BMECAT").
  * If create is `1`, the root node will be created if it doesn't exist yet.
  */
-xmlNodePtr libcatner_get_root(const xmlDocPtr doc, int create)
+static xmlNodePtr libcatner_get_root(const xmlDocPtr doc, int create)
 {
 	xmlNodePtr root = xmlDocGetRootElement(doc);
 	
@@ -300,7 +302,7 @@ static inline xmlNodePtr libcatner_get_generator(xmlNodePtr header, int create)
  * one that has a matching article ID (SUPPLIER_ID) and returns it. If no 
  * matching article node could be found, NULL will be returned.
  */
-xmlNodePtr libcatner_get_article(const xmlNodePtr articles, const xmlChar *aid)
+static xmlNodePtr libcatner_get_article(const xmlNodePtr articles, const xmlChar *aid)
 {
 	// Iterate all articles
 	xmlNodePtr article = NULL;
@@ -322,7 +324,7 @@ xmlNodePtr libcatner_get_article(const xmlNodePtr articles, const xmlChar *aid)
  * Given an ARTICLE node, finds and returns the FEATURE node with the given FID 
  * or NULL if no matching feature exists within the article.
  */
-xmlNodePtr libcatner_get_feature(const xmlNodePtr article, const xmlChar *fid)
+static xmlNodePtr libcatner_get_feature(const xmlNodePtr article, const xmlChar *fid)
 {
 	// Find the ARTICLE_FEATURES node, which holds all features
 	xmlNodePtr features = libcatner_get_child(article, BMECAT_NODE_FEATURES, NULL, 0);
@@ -353,7 +355,7 @@ xmlNodePtr libcatner_get_feature(const xmlNodePtr article, const xmlChar *fid)
 	return NULL;
 }
 
-xmlNodePtr libcatner_get_variant(const xmlNodePtr feature, const xmlChar *vid)
+static xmlNodePtr libcatner_get_variant(const xmlNodePtr feature, const xmlChar *vid)
 {
 	// Find the VARIANTS node, which holds all variants
 	xmlNodePtr variants = libcatner_get_child(feature, BMECAT_NODE_VARIANTS, NULL, 0);
@@ -390,7 +392,7 @@ xmlNodePtr libcatner_get_variant(const xmlNodePtr feature, const xmlChar *vid)
  * Returns the number of bytes (including the terminating null-byte), that was 
  * or would've been required to copy the entire content, or 0 on error.
  */
-size_t libcatner_cpy_content(xmlNodePtr node, char *buf, size_t len)
+static size_t libcatner_cpy_content(xmlNodePtr node, char *buf, size_t len)
 {
 	// Return empty buffer if node is NULL 
 	if (node == NULL)
@@ -430,7 +432,7 @@ size_t libcatner_cpy_content(xmlNodePtr node, char *buf, size_t len)
 	return content_len;
 }
 
-size_t libcatner_num_features(xmlNodePtr article)
+static size_t libcatner_num_features(xmlNodePtr article)
 {
 	xmlNodePtr features = libcatner_get_child(article, BMECAT_NODE_FEATURES, NULL, 0);
 	if (features == NULL)
@@ -441,7 +443,7 @@ size_t libcatner_num_features(xmlNodePtr article)
 	return libcatner_num_children(features, BMECAT_NODE_FEATURE, NULL);
 }
 
-size_t libcatner_num_variants(xmlNodePtr feature)
+static size_t libcatner_num_variants(xmlNodePtr feature)
 {
 	xmlNodePtr variants = libcatner_get_child(feature, BMECAT_NODE_VARIANTS, NULL, 0);
 	if (variants == NULL)
@@ -455,7 +457,7 @@ size_t libcatner_num_variants(xmlNodePtr feature)
 /*
  * TODO documentation
  */
-int libcatner_fix_feature_order(xmlNodePtr article)
+static int libcatner_fix_feature_order(xmlNodePtr article)
 {
 	// Find the ARTICLE_FEATUERS node containing all features
 	xmlNodePtr features = libcatner_get_child(article, BMECAT_NODE_FEATURES, NULL, 0);

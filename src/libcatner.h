@@ -107,6 +107,23 @@ struct catner_state
 typedef struct catner_state catner_state_s;
 
 /*
+ * Validating, fixing
+ */
+
+//int catner_fix_locale(char *value, int fix);
+//int catner_fix_territory(char *value, int fix);
+//int catner_fix_article_id(char *value, int fix);
+//int catner_fix_feature_id(char *value, int fix);
+//int catner_fix_variant_id(char *value, int fix);
+//int catner_fix_image(char *value, int fix);
+//int catner_fix_category(char *value, int fix);
+//int catner_fix_unit(char *value, int fix);
+//int catner_fix_amount(char *value, int fix);
+//int catner_fix_weight(char *value, int fix);
+//int catner_fix_price(char *value, int fix);
+//int catner_fix_stock(char *value, int fix);
+
+/*
  * Adding elements
  */
 
