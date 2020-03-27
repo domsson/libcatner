@@ -5,7 +5,7 @@
 #include <libxml/tree.h>
 
 // Name & version
-#define LIBCATNER_NAME "catner"
+#define LIBCATNER_NAME "libcatner"
 #define LIBCATNER_VER_MAJOR 0
 #define LIBCATNER_VER_MINOR 1
 #define LIBCATNER_VER_PATCH 0
