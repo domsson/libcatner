@@ -168,6 +168,8 @@ size_t catner_get_territories(catner_state_s *cs, char *buf, size_t len);
 size_t catner_get_article_aid(catner_state_s *cs, char *buf, size_t len);
 size_t catner_get_article_title(catner_state_s *cs, const char *aid, char *buf, size_t len);
 size_t catner_get_article_descr(catner_state_s *cs, const char *aid, char *buf, size_t len);
+//size_t catner_get_article_unit(catner_state_s *cs, const char *aid, char *buf, size_t len);
+//size_t catner_get_article_units(catner_state_s *cs, const char *aid, char *buf, size_t len);
 size_t catner_get_article_categories(catner_state_s *cs, const char *aid, char *buf, size_t len);
 
 size_t catner_get_sel_article_id(catner_state_s *cs, char *buf, size_t len);

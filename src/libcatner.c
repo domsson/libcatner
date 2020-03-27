@@ -394,20 +394,20 @@ static xmlNodePtr libcatner_get_variant(const xmlNodePtr feature, const xmlChar 
  */
 static size_t libcatner_cpy_content(xmlNodePtr node, char *buf, size_t len)
 {
-	// Return empty buffer if node is NULL 
+	// Return 0 (error) if node is NULL 
 	if (node == NULL)
 	{
-		buf[0] = '\0';
+		//buf[0] = '\0';
 		return 0;
 	}
 
 	// Fetch the content string
 	xmlChar *content = xmlNodeGetContent(node);
 	
-	// Return empty buffer if node has no content
+	// Return 0 (error) if node has no content
 	if (content == NULL)
 	{
-		buf[0] = '\0';
+		//buf[0] = '\0';
 		return 0;
 	}
 
@@ -417,11 +417,15 @@ static size_t libcatner_cpy_content(xmlNodePtr node, char *buf, size_t len)
 	// Figure out the max length we can copy
 	size_t copy_len = content_len > len ? len : content_len;
 
-	// Copy everything over (that fits in the buffer)
-	strncpy(buf, (char *) content, copy_len);
-
-	// Make sure the buffer is 0-terminated
-	buf[copy_len - 1] = '\0';
+	// Only perform the actual copying if buf isn't NULL
+	if (buf)
+	{
+		// Copy everything over (that fits in the buffer)
+		strncpy(buf, (char *) content, copy_len);
+	
+		// Make sure the buffer is 0-terminated
+		buf[copy_len - 1] = '\0';
+	}
 
 	// Free the content string we received from libxml
 	xmlFree(content);
@@ -1106,6 +1110,40 @@ size_t catner_get_generator(catner_state_s *cs, char *buf, size_t len)
 	return libcatner_cpy_content(cs->generator, buf, len);
 }
 
+size_t catner_get_territories(catner_state_s *cs, char *buf, size_t len)
+{
+	buf[0] = '\0';
+
+	const char *comma = ",";
+	size_t cur_len = 0;
+	size_t req_len = 0;
+	xmlNodePtr t = libcatner_get_child(cs->catalog, BMECAT_NODE_TERRITORY, NULL, 0);
+
+	// TODO xmlFree(t_str)
+	for (; t; t = libcatner_next_node(t))
+	{
+		char *t_str = (char *) xmlNodeGetContent(t);
+		size_t t_len = strlen(t_str);
+
+		req_len += (t_len + (cur_len != 0));
+		if ((req_len + 1) > len)
+		{
+			continue;
+		}
+		
+		if (cur_len)
+		{
+			strncat(buf, comma, 1);
+		}
+		
+		strncat(buf, t_str, t_len);
+		cur_len = req_len;
+	}
+
+	buf[cur_len] = '\0';
+	return req_len + 1;
+}
+
 size_t catner_get_article_aid(catner_state_s *cs, char *buf, size_t len)
 {
 	if (cs->_curr_article == NULL)
@@ -1145,38 +1183,29 @@ size_t catner_get_article_descr(catner_state_s *cs, const char *aid, char *buf, 
 	return libcatner_cpy_content(descr, buf, len);
 }
 
-size_t catner_get_territories(catner_state_s *cs, char *buf, size_t len)
+/*
+ * Gets the article's _main_ unit
+ * TODO proper documentation
+ */
+size_t catner_get_article_unit(catner_state_s *cs, const char *aid, char *buf, size_t len)
 {
-	buf[0] = '\0';
+	xmlNodePtr article = aid ? libcatner_get_article(cs->articles, BAD_CAST aid) :
+		cs->_curr_article;
 
-	const char *comma = ",";
-	size_t cur_len = 0;
-	size_t req_len = 0;
-	xmlNodePtr t = libcatner_get_child(cs->catalog, BMECAT_NODE_TERRITORY, NULL, 0);
-
-	// TODO xmlFree(t_str)
-	for (; t; t = libcatner_next_node(t))
+	if (article == NULL)
 	{
-		char *t_str = (char *) xmlNodeGetContent(t);
-		size_t t_len = strlen(t_str);
-
-		req_len += (t_len + (cur_len != 0));
-		if ((req_len + 1) > len)
-		{
-			continue;
-		}
-		
-		if (cur_len)
-		{
-			strncat(buf, comma, 1);
-		}
-		
-		strncat(buf, t_str, t_len);
-		cur_len = req_len;
+		return libcatner_cpy_content(NULL, buf, len);
 	}
 
-	buf[cur_len] = '\0';
-	return req_len + 1;
+	xmlNodePtr units = libcatner_get_child(article, BMECAT_NODE_ARTICLE_UNITS, NULL, 0);
+
+	if (units == NULL)
+	{
+		return libcatner_cpy_content(NULL, buf, len);
+	}
+
+	xmlNodePtr munit = libcatner_get_child(units, BMECAT_NODE_ARTICLE_MAIN_UNIT, NULL, 0);
+	return libcatner_cpy_content(munit, buf, len);
 }
 
 size_t catner_get_article_categories(catner_state_s *cs, const char *aid, char *buf, size_t len)
