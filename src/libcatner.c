@@ -431,7 +431,7 @@ static size_t libcatner_cpy_content(xmlNodePtr node, char *buf, size_t len)
 	xmlFree(content);
 
 	// Return the buffer size that was needed to copy everything (including 
-	// the terminating null-byte) which might be less than what was used in 
+	// the terminating null-byte) which might be more than what was used in 
 	// case the provided buffer wasn't sufficient
 	return content_len;
 }
